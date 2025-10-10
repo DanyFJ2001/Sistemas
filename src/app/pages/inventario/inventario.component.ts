@@ -1,5 +1,5 @@
 // src/app/pages/inventario/inventario.component.ts
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -51,7 +51,8 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   constructor(
     private firebaseService: FirebaseService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -188,9 +189,22 @@ export class InventarioComponent implements OnInit, OnDestroy {
     console.log('Deteniendo scanner...');
     this.stopQRScanner();
     
+    // Intentar parsear como JSON
+    let equipmentData: any = null;
+    let serialNumber = code;
+    
+    try {
+      equipmentData = JSON.parse(code);
+      console.log('✅ QR parseado como JSON:', equipmentData);
+      serialNumber = equipmentData.serialNumber || code;
+    } catch (error) {
+      console.log('ℹ️ QR no es JSON, usando como número de serie simple');
+      serialNumber = code;
+    }
+    
     // Buscar si el equipo ya existe
-    console.log('Buscando equipo existente...');
-    const existing = this.firebaseService.findEquipmentByQR(code);
+    console.log('Buscando equipo existente con serie:', serialNumber);
+    const existing = this.firebaseService.findEquipmentBySerial(serialNumber);
     console.log('Resultado búsqueda:', existing);
     
     if (existing) {
@@ -203,27 +217,45 @@ export class InventarioComponent implements OnInit, OnDestroy {
     
     console.log('✅ Equipo nuevo, preparando datos...');
     
-    // Si no existe, abrir modal para agregar info adicional
-    this.newEquipment = {
-      name: '',
-      model: '',
-      serialNumber: code,
-      qrCode: code,
-      category: 'Laptop',
-      status: 'disponible',
-      assignedTo: '',
-      purchaseDate: ''
-    };
+    // Si no existe, preparar datos para el modal
+    if (equipmentData && typeof equipmentData === 'object') {
+      // QR con datos completos (JSON válido)
+      this.newEquipment = {
+        name: equipmentData.name || '',
+        model: equipmentData.model || '',
+        serialNumber: equipmentData.serialNumber || serialNumber,
+        qrCode: code,
+        category: equipmentData.category || 'Laptop',
+        status: equipmentData.status || 'disponible',
+        assignedTo: equipmentData.assignedTo || '',
+        purchaseDate: equipmentData.purchaseDate || ''
+      };
+      console.log('📦 Datos pre-llenados desde QR JSON');
+    } else {
+      // QR simple (solo texto, no JSON)
+      this.newEquipment = {
+        name: '',
+        model: '',
+        serialNumber: serialNumber,
+        qrCode: code,
+        category: 'Laptop',
+        status: 'disponible',
+        assignedTo: '',
+        purchaseDate: ''
+      };
+      console.log('📝 Solo número de serie, requiere completar datos manualmente');
+    }
     
     console.log('Datos del nuevo equipo:', this.newEquipment);
-    console.log('Cerrando scanner...');
+    console.log('Cerrando scanner y abriendo modal...');
     this.closeQRScanner();
     
-    console.log('Abriendo modal... showAddModal será true');
-    this.showAddModal = true;
-    console.log('showAddModal ahora es:', this.showAddModal);
+    // Usar setTimeout para asegurar que Angular detecte el cambio
+    setTimeout(() => {
+      this.showAddModal = true;
+      console.log('✅ Modal abierto, showAddModal:', this.showAddModal);
+    }, 100);
     
-    console.log('📝 Modal debería estar abierto');
     console.log('=== onQRCodeScanned FIN ===');
   }
 
