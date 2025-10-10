@@ -1,0 +1,324 @@
+<!-- src/app/pages/inventario/inventario.component.html -->
+<div class="inventario-page">
+  
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-info">
+      <h1 class="page-title">Inventario de Equipos</h1>
+      <p class="page-subtitle">Gestiona laptops, PCs y equipos tecnológicos</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="exportToExcel()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span class="btn-text">Excel</span>
+      </button>
+
+      <button class="btn-secondary" (click)="exportToPDF()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span class="btn-text">PDF</span>
+      </button>
+
+      <button class="btn-primary" (click)="openScanQR()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span class="btn-text">Escanear QR</span>
+      </button>
+
+      <button class="btn-primary" (click)="openAddModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text">Agregar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters and Search -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input 
+        type="text" 
+        placeholder="Buscar por nombre, modelo o serie..." 
+        class="search-input"
+        [(ngModel)]="searchTerm"
+        (input)="onSearch($event)">
+    </div>
+
+    <div class="filter-buttons">
+      <button 
+        class="filter-btn"
+        [class.active]="selectedFilter === 'todos'"
+        (click)="onFilterChange('todos')">
+        Todos ({{ equipmentList.length }})
+      </button>
+      <button 
+        class="filter-btn"
+        [class.active]="selectedFilter === 'disponible'"
+        (click)="onFilterChange('disponible')">
+        Disponibles
+      </button>
+      <button 
+        class="filter-btn"
+        [class.active]="selectedFilter === 'asignado'"
+        (click)="onFilterChange('asignado')">
+        Asignados
+      </button>
+      <button 
+        class="filter-btn"
+        [class.active]="selectedFilter === 'mantenimiento'"
+        (click)="onFilterChange('mantenimiento')">
+        Mantenimiento
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando inventario...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && filteredEquipment.length === 0 && searchTerm === ''" class="empty-state">
+    <div class="empty-icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+    </div>
+    <h3>No hay equipos registrados</h3>
+    <p>Comienza agregando equipos con el botón "Agregar" o escanea un código QR</p>
+    <div class="empty-actions">
+      <button class="btn-primary" (click)="openAddModal()">Agregar Equipo</button>
+      <button class="btn-secondary" (click)="openScanQR()">Escanear QR</button>
+    </div>
+  </div>
+
+  <!-- No Results -->
+  <div *ngIf="!loading && filteredEquipment.length === 0 && searchTerm !== ''" class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>No se encontraron resultados</h3>
+    <p>Intenta con otros términos de búsqueda</p>
+  </div>
+
+  <!-- Equipment Grid -->
+  <div *ngIf="!loading && filteredEquipment.length > 0" class="equipment-grid">
+    <div *ngFor="let equipment of filteredEquipment" class="equipment-card">
+      <div class="card-header">
+        <div class="equipment-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <span class="status-badge" [class]="'status-' + equipment.status">
+          {{ equipment.status }}
+        </span>
+      </div>
+
+      <h3 class="equipment-name">{{ equipment.name }}</h3>
+      <p class="equipment-model">{{ equipment.model }}</p>
+      <p class="equipment-serial">Serie: {{ equipment.serialNumber }}</p>
+      
+      <div *ngIf="equipment.assignedTo" class="equipment-assigned">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        {{ equipment.assignedTo }}
+      </div>
+
+      <div class="equipment-footer">
+        <span class="equipment-category">{{ equipment.category }}</span>
+        <div class="card-actions">
+          <button class="btn-icon" (click)="viewEquipment(equipment)" title="Ver detalles">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+          <button class="btn-icon" (click)="editEquipment(equipment)" title="Editar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="btn-icon btn-danger" (click)="deleteEquipment(equipment)" title="Eliminar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- QR SCANNER MODAL -->
+<div *ngIf="showQRScanner" class="modal-overlay" (click)="closeQRScanner()">
+  <div class="modal-content scanner-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Escanear Código QR</h2>
+      <button class="close-btn" (click)="closeQRScanner()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="scanner-container">
+        <!-- Contenedor para el scanner de html5-qrcode -->
+        <div #qrReader id="qr-reader"></div>
+      </div>
+
+      <p *ngIf="scannerError" class="error-message">{{ scannerError }}</p>
+      
+      <p class="scanner-instructions">
+        Coloca el código QR frente a la cámara
+        <br>
+        <small>El escaneo es automático cuando detecta un QR</small>
+      </p>
+      
+      <!-- Botón temporal para testing sin cámara -->
+      <button class="btn-secondary" (click)="simulateQRScan()">
+        🎯 Simular escaneo (Para testing)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT EQUIPMENT MODAL -->
+<div *ngIf="showAddModal" class="modal-overlay" (click)="closeAddModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ newEquipment.id ? 'Editar Equipo' : 'Agregar Nuevo Equipo' }}</h2>
+      <button class="close-btn" (click)="closeAddModal()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <form class="equipment-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Nombre del Equipo *</label>
+            <input 
+              type="text" 
+              id="name"
+              class="form-input"
+              [(ngModel)]="newEquipment.name"
+              name="name"
+              placeholder="Ej: Laptop HP Usuario 1"
+              required>
+          </div>
+
+          <div class="form-group">
+            <label for="model">Modelo *</label>
+            <input 
+              type="text" 
+              id="model"
+              class="form-input"
+              [(ngModel)]="newEquipment.model"
+              name="model"
+              placeholder="Ej: HP ProBook 450 G8"
+              required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="serialNumber">Número de Serie *</label>
+            <input 
+              type="text" 
+              id="serialNumber"
+              class="form-input"
+              [(ngModel)]="newEquipment.serialNumber"
+              name="serialNumber"
+              placeholder="Ej: 5CD1234ABC"
+              required>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Categoría *</label>
+            <select 
+              id="category"
+              class="form-select"
+              [(ngModel)]="newEquipment.category"
+              name="category">
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="status">Estado *</label>
+            <select 
+              id="status"
+              class="form-select"
+              [(ngModel)]="newEquipment.status"
+              name="status">
+              <option value="disponible">Disponible</option>
+              <option value="asignado">Asignado</option>
+              <option value="mantenimiento">Mantenimiento</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="purchaseDate">Fecha de Adquisición</label>
+            <input 
+              type="date" 
+              id="purchaseDate"
+              class="form-input"
+              [(ngModel)]="newEquipment.purchaseDate"
+              name="purchaseDate">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="newEquipment.status === 'asignado'">
+          <label for="assignedTo">Asignado a</label>
+          <input 
+            type="text" 
+            id="assignedTo"
+            class="form-input"
+            [(ngModel)]="newEquipment.assignedTo"
+            name="assignedTo"
+            placeholder="Nombre del usuario">
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeAddModal()">Cancelar</button>
+      <button class="btn-primary" (click)="saveEquipment()">
+        {{ newEquipment.id ? 'Actualizar' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>

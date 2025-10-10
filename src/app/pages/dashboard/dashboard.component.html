@@ -1,0 +1,140 @@
+<!-- src/app/pages/dashboard/dashboard.component.html -->
+<div class="dashboard-page">
+  
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando información del sistema...</p>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading" class="dashboard-content">
+    
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <button class="back-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <div class="header-titles">
+          <h1 class="page-title">Sistema de Inventario</h1>
+          <p class="page-subtitle">Gestión de Equipos y Recursos</p>
+        </div>
+      </div>
+
+      <div class="header-stats">
+        <div class="stat-badge">
+          <div class="stat-icon blue">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.totalEquipment }}</span>
+            <span class="stat-label">Total Equipos</span>
+          </div>
+        </div>
+
+        <div class="stat-badge">
+          <div class="stat-icon purple">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.assignedEquipment }}</span>
+            <span class="stat-label">Asignados</span>
+          </div>
+        </div>
+
+        <div class="stat-badge">
+          <div class="stat-icon green">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.availableEquipment }}</span>
+            <span class="stat-label">Disponibles</span>
+          </div>
+        </div>
+
+        <div class="stat-badge">
+          <div class="stat-icon orange">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.maintenanceEquipment }}</span>
+            <span class="stat-label">Mantenimiento</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activities Section -->
+    <section class="activities-section">
+      <div class="section-header">
+        <h2 class="section-title">Actividad Reciente</h2>
+        <div class="section-actions">
+          <button class="btn-icon-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="19" cy="12" r="1"></circle>
+              <circle cx="5" cy="12" r="1"></circle>
+            </svg>
+          </button>
+          <button class="btn-icon-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State cuando no hay actividades -->
+      <div *ngIf="recentActivities.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+        </div>
+        <h3>No hay actividad reciente</h3>
+        <p>Cuando agregues equipos o completes tareas, aparecerán aquí</p>
+      </div>
+
+      <!-- Cards Grid cuando hay datos -->
+      <div *ngIf="recentActivities.length > 0" class="cards-grid">
+        <div *ngFor="let activity of recentActivities" 
+             class="activity-card" 
+             [ngClass]="activity.colorClass">
+          <div class="card-header">
+            <span class="card-date">{{ activity.date }}</span>
+            <button class="card-menu-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="19" cy="12" r="1"></circle>
+                <circle cx="5" cy="12" r="1"></circle>
+              </svg>
+            </button>
+          </div>
+          <h3 class="card-title">{{ activity.title }}</h3>
+          <div class="card-value">{{ activity.value }}</div>
+          <div class="card-avatars">
+            <img *ngFor="let user of activity.users" 
+                 [src]="'https://ui-avatars.com/api/?name=' + user + '&background=random&color=fff'" 
+                 class="avatar-sm" 
+                 [alt]="user">
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</div>
