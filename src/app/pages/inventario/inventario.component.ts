@@ -1,5 +1,5 @@
 // src/app/pages/inventario/inventario.component.ts
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -18,10 +18,13 @@ export class InventarioComponent implements OnInit, OnDestroy {
   
   private destroy$ = new Subject<void>();
   private html5QrCode: Html5Qrcode | null = null;
+  private isScanning = false;
+  private startQRScannerTimeout?: any;
   
   loading = true;
   searchTerm = '';
   selectedFilter = 'todos';
+  savingEquipment = false;
   
   // Scanner QR
   showQRScanner = false;
@@ -46,13 +49,19 @@ export class InventarioComponent implements OnInit, OnDestroy {
   // Categorías disponibles
   categories = ['Laptop', 'PC', 'Monitor', 'Impresora', 'Tablet', 'Servidor', 'Otro'];
 
-  constructor(private firebaseService: FirebaseService) {}
+  constructor(
+    private firebaseService: FirebaseService,
+    private ngZone: NgZone
+  ) {}
 
   ngOnInit(): void {
     this.loadEquipment();
   }
 
   ngOnDestroy(): void {
+    if (this.startQRScannerTimeout) {
+      clearTimeout(this.startQRScannerTimeout);
+    }
     this.destroy$.next();
     this.destroy$.complete();
     this.stopQRScanner();
@@ -108,19 +117,35 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   // ===== QR SCANNER =====
   async openScanQR(): Promise<void> {
+    console.log('📷 Abriendo scanner QR...');
     this.showQRScanner = true;
     this.scannerError = '';
+    this.isScanning = false;
     
     // Esperar a que el DOM se actualice
-    setTimeout(() => {
+    this.startQRScannerTimeout = setTimeout(() => {
       this.startQRScanner();
-    }, 100);
+    }, 200);
   }
 
   private async startQRScanner(): Promise<void> {
     try {
-      // Crear instancia del scanner
+      if (!this.qrReader?.nativeElement) {
+        throw new Error('Elemento QR reader no disponible');
+      }
+
       this.html5QrCode = new Html5Qrcode('qr-reader');
+      this.isScanning = false;
+      
+      // Verificar cámaras disponibles
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) {
+          throw new Error('No se encontraron cámaras disponibles');
+        }
+      } catch (err) {
+        throw new Error('No se pudo acceder a las cámaras. Verifica los permisos.');
+      }
       
       const config = {
         fps: 10,
@@ -128,40 +153,55 @@ export class InventarioComponent implements OnInit, OnDestroy {
         aspectRatio: 1.0
       };
 
-      // Iniciar el scanner
       await this.html5QrCode.start(
-        { facingMode: 'environment' }, // Cámara trasera en móviles
+        { facingMode: 'environment' },
         config,
-        (decodedText, decodedResult) => {
-          // Código QR detectado exitosamente
-          console.log('QR Code detectado:', decodedText);
-          this.onQRCodeScanned(decodedText);
+        (decodedText) => {
+          // Solo procesar si NO hay modal abierto
+          if (!this.showAddModal && !this.isScanning) {
+            this.isScanning = true;
+            this.ngZone.run(() => {
+              this.onQRCodeScanned(decodedText);
+            });
+          }
         },
         (errorMessage) => {
-          // Error al escanear (normal mientras busca el QR)
-          // No hacer nada aquí para evitar spam en consola
+          // Ignorar errores de búsqueda de QR
         }
       );
+
+      console.log('✅ Scanner iniciado');
     } catch (error: any) {
       console.error('Error al iniciar scanner:', error);
-      this.scannerError = error?.message || 'No se pudo acceder a la cámara. Por favor, permite el acceso.';
+      this.ngZone.run(() => {
+        this.scannerError = error?.message || 'No se pudo acceder a la cámara. Permite el acceso en tu navegador.';
+        this.showQRScanner = false;
+      });
     }
   }
 
   onQRCodeScanned(code: string): void {
-    console.log('QR Code escaneado:', code);
+    console.log('=== onQRCodeScanned INICIO ===');
+    console.log('🎯 Código recibido:', code);
     
     // Detener el scanner inmediatamente
+    console.log('Deteniendo scanner...');
     this.stopQRScanner();
     
     // Buscar si el equipo ya existe
+    console.log('Buscando equipo existente...');
     const existing = this.firebaseService.findEquipmentByQR(code);
+    console.log('Resultado búsqueda:', existing);
     
     if (existing) {
+      console.log('⚠️ Equipo ya existe:', existing);
       alert(`Equipo ya registrado:\n${existing.name}\nModelo: ${existing.model}\nSerie: ${existing.serialNumber}`);
       this.closeQRScanner();
+      console.log('=== onQRCodeScanned FIN (equipo existente) ===');
       return;
     }
+    
+    console.log('✅ Equipo nuevo, preparando datos...');
     
     // Si no existe, abrir modal para agregar info adicional
     this.newEquipment = {
@@ -175,19 +215,36 @@ export class InventarioComponent implements OnInit, OnDestroy {
       purchaseDate: ''
     };
     
+    console.log('Datos del nuevo equipo:', this.newEquipment);
+    console.log('Cerrando scanner...');
     this.closeQRScanner();
+    
+    console.log('Abriendo modal... showAddModal será true');
     this.showAddModal = true;
+    console.log('showAddModal ahora es:', this.showAddModal);
+    
+    console.log('📝 Modal debería estar abierto');
+    console.log('=== onQRCodeScanned FIN ===');
   }
 
-  // Método temporal para simular escaneo (para testing sin cámara)
+  // Método para testing sin cámara
   simulateQRScan(): void {
-    const testCode = 'TEST-' + Date.now().toString().substr(-6);
-    this.onQRCodeScanned(testCode);
+    const testCode = 'TEST-' + Date.now().toString().slice(-6);
+    console.log('🧪 Simulando QR:', testCode);
+    
+    this.ngZone.run(() => {
+      this.onQRCodeScanned(testCode);
+    });
   }
 
   closeQRScanner(): void {
     this.showQRScanner = false;
-    this.stopQRScanner();
+    this.isScanning = false;
+    
+    // Detener el scanner con delay
+    setTimeout(() => {
+      this.stopQRScanner();
+    }, 100);
   }
 
   private stopQRScanner(): void {
@@ -198,7 +255,11 @@ export class InventarioComponent implements OnInit, OnDestroy {
           this.html5QrCode = null;
         })
         .catch((err) => {
-          console.error('Error al detener scanner:', err);
+          console.error('Error deteniendo scanner:', err);
+          this.html5QrCode = null;
+        })
+        .finally(() => {
+          this.isScanning = false;
         });
     }
   }
@@ -223,8 +284,16 @@ export class InventarioComponent implements OnInit, OnDestroy {
   }
 
   async saveEquipment(): Promise<void> {
+    if (this.savingEquipment) return;
+
     if (!this.newEquipment.name || !this.newEquipment.model || !this.newEquipment.serialNumber) {
       alert('Por favor completa todos los campos obligatorios');
+      return;
+    }
+
+    // Validar categoría
+    if (!this.categories.includes(this.newEquipment.category!)) {
+      alert('Categoría inválida');
       return;
     }
 
@@ -235,6 +304,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.savingEquipment = true;
     try {
       await this.firebaseService.addEquipment(this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>);
       alert('Equipo agregado exitosamente');
@@ -242,6 +312,8 @@ export class InventarioComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error al guardar equipo:', error);
       alert('Error al guardar el equipo. Intenta de nuevo.');
+    } finally {
+      this.savingEquipment = false;
     }
   }
 
@@ -271,92 +343,114 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   // ===== EXPORTACIÓN =====
   exportToExcel(): void {
-    // Crear tabla HTML
-    let html = '<table><thead><tr>';
-    html += '<th>Nombre</th><th>Modelo</th><th>Serie</th><th>Categoría</th><th>Estado</th><th>Asignado a</th>';
-    html += '</tr></thead><tbody>';
-    
-    this.filteredEquipment.forEach(eq => {
-      html += '<tr>';
-      html += `<td>${eq.name}</td>`;
-      html += `<td>${eq.model}</td>`;
-      html += `<td>${eq.serialNumber}</td>`;
-      html += `<td>${eq.category}</td>`;
-      html += `<td>${eq.status}</td>`;
-      html += `<td>${eq.assignedTo || '-'}</td>`;
-      html += '</tr>';
-    });
-    
-    html += '</tbody></table>';
-    
-    // Crear archivo y descargar
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inventario_${new Date().toISOString().split('T')[0]}.xls`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    try {
+      const escapeHtml = (text: string) => {
+        return text.replace(/[&<>"']/g, (m) => {
+          const entities: any = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+          return entities[m];
+        });
+      };
+
+      let html = '<table><thead><tr>';
+      html += '<th>Nombre</th><th>Modelo</th><th>Serie</th><th>Categoría</th><th>Estado</th><th>Asignado a</th>';
+      html += '</tr></thead><tbody>';
+      
+      this.filteredEquipment.forEach(eq => {
+        html += '<tr>';
+        html += `<td>${escapeHtml(eq.name)}</td>`;
+        html += `<td>${escapeHtml(eq.model)}</td>`;
+        html += `<td>${escapeHtml(eq.serialNumber)}</td>`;
+        html += `<td>${escapeHtml(eq.category)}</td>`;
+        html += `<td>${escapeHtml(eq.status)}</td>`;
+        html += `<td>${escapeHtml(eq.assignedTo || '-')}</td>`;
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+      
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventario_${new Date().toISOString().split('T')[0]}.xls`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando:', error);
+      alert('Error al exportar el archivo');
+    }
   }
 
   exportToPDF(): void {
-    // Generar contenido HTML para PDF
-    let html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #6366f1; color: white; }
-          </style>
-        </head>
-        <body>
-          <h1>Inventario de Equipos</h1>
-          <p>Fecha: ${new Date().toLocaleDateString()}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Modelo</th>
-                <th>Serie</th>
-                <th>Categoría</th>
-                <th>Estado</th>
-                <th>Asignado a</th>
-              </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    this.filteredEquipment.forEach(eq => {
-      html += `
-        <tr>
-          <td>${eq.name}</td>
-          <td>${eq.model}</td>
-          <td>${eq.serialNumber}</td>
-          <td>${eq.category}</td>
-          <td>${eq.status}</td>
-          <td>${eq.assignedTo || '-'}</td>
-        </tr>
+    try {
+      const escapeHtml = (text: string) => {
+        return text.replace(/[&<>"']/g, (m) => {
+          const entities: any = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+          return entities[m];
+        });
+      };
+
+      let html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; }
+              h1 { color: #333; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #6366f1; color: white; }
+            </style>
+          </head>
+          <body>
+            <h1>Inventario de Equipos</h1>
+            <p>Fecha: ${new Date().toLocaleDateString()}</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Modelo</th>
+                  <th>Serie</th>
+                  <th>Categoría</th>
+                  <th>Estado</th>
+                  <th>Asignado a</th>
+                </tr>
+              </thead>
+              <tbody>
       `;
-    });
-    
-    html += `
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-    
-    // Abrir en nueva ventana para imprimir
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 250);
+      
+      this.filteredEquipment.forEach(eq => {
+        html += `
+          <tr>
+            <td>${escapeHtml(eq.name)}</td>
+            <td>${escapeHtml(eq.model)}</td>
+            <td>${escapeHtml(eq.serialNumber)}</td>
+            <td>${escapeHtml(eq.category)}</td>
+            <td>${escapeHtml(eq.status)}</td>
+            <td>${escapeHtml(eq.assignedTo || '-')}</td>
+          </tr>
+        `;
+      });
+      
+      html += `
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
+      }
+    } catch (error) {
+      console.error('Error exportando PDF:', error);
+      alert('Error al generar el PDF');
     }
   }
 }
