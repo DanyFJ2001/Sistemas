@@ -167,6 +167,15 @@
 .nav-user {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.nav-user:hover {
+  background: var(--hover-bg);
 }
 
 .nav-avatar {
@@ -175,6 +184,24 @@
   border-radius: 50%;
   border: 2px solid var(--border-color);
   cursor: pointer;
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  color: #ef4444 !important;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
 }
 
 /* === CONTENT AREA === */
@@ -201,6 +228,10 @@
   }
 
   .brand-text {
+    display: none;
+  }
+
+  .user-email {
     display: none;
   }
 }

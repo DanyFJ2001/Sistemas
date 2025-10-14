@@ -186,53 +186,59 @@ export class InventarioComponent implements OnInit, OnDestroy {
     console.log('🎯 Código recibido:', code);
     
     // Detener el scanner inmediatamente
-    console.log('Deteniendo scanner...');
     this.stopQRScanner();
     
     // Intentar parsear como JSON
-    let equipmentData: any = null;
+    let parsedData: any = null;
     let serialNumber = code;
     
     try {
-      equipmentData = JSON.parse(code);
-      console.log('✅ QR parseado como JSON:', equipmentData);
-      serialNumber = equipmentData.serialNumber || code;
+      parsedData = JSON.parse(code);
+      console.log('✅ QR parseado como JSON:', parsedData);
+      serialNumber = parsedData.serialNumber || code;
     } catch (error) {
       console.log('ℹ️ QR no es JSON, usando como número de serie simple');
-      serialNumber = code;
     }
     
     // Buscar si el equipo ya existe
-    console.log('Buscando equipo existente con serie:', serialNumber);
     const existing = this.firebaseService.findEquipmentBySerial(serialNumber);
-    console.log('Resultado búsqueda:', existing);
     
     if (existing) {
       console.log('⚠️ Equipo ya existe:', existing);
       alert(`Equipo ya registrado:\n${existing.name}\nModelo: ${existing.model}\nSerie: ${existing.serialNumber}`);
       this.closeQRScanner();
-      console.log('=== onQRCodeScanned FIN (equipo existente) ===');
       return;
     }
     
     console.log('✅ Equipo nuevo, preparando datos...');
     
-    // Si no existe, preparar datos para el modal
-    if (equipmentData && typeof equipmentData === 'object') {
-      // QR con datos completos (JSON válido)
+    // Cerrar scanner primero
+    this.closeQRScanner();
+    
+    // Preparar datos del nuevo equipo
+    if (parsedData && typeof parsedData === 'object') {
+      // QR con JSON completo
+      console.log('📦 Llenando con datos del JSON...');
       this.newEquipment = {
-        name: equipmentData.name || '',
-        model: equipmentData.model || '',
-        serialNumber: equipmentData.serialNumber || serialNumber,
+        name: parsedData.name || '',
+        model: parsedData.model || '',
+        serialNumber: parsedData.serialNumber || serialNumber,
         qrCode: code,
-        category: equipmentData.category || 'Laptop',
-        status: equipmentData.status || 'disponible',
-        assignedTo: equipmentData.assignedTo || '',
-        purchaseDate: equipmentData.purchaseDate || ''
+        category: parsedData.category || 'Laptop',
+        status: parsedData.status || 'disponible',
+        assignedTo: parsedData.assignedTo || '',
+        purchaseDate: parsedData.purchaseDate || ''
       };
-      console.log('📦 Datos pre-llenados desde QR JSON');
+      
+      console.log('Datos asignados:', {
+        name: this.newEquipment.name,
+        model: this.newEquipment.model,
+        serialNumber: this.newEquipment.serialNumber,
+        category: this.newEquipment.category
+      });
     } else {
-      // QR simple (solo texto, no JSON)
+      // QR simple
+      console.log('📝 QR simple, solo número de serie');
       this.newEquipment = {
         name: '',
         model: '',
@@ -243,18 +249,17 @@ export class InventarioComponent implements OnInit, OnDestroy {
         assignedTo: '',
         purchaseDate: ''
       };
-      console.log('📝 Solo número de serie, requiere completar datos manualmente');
     }
     
-    console.log('Datos del nuevo equipo:', this.newEquipment);
-    console.log('Cerrando scanner y abriendo modal...');
-    this.closeQRScanner();
-    
-    // Usar setTimeout para asegurar que Angular detecte el cambio
+    // Abrir modal con delay para asegurar que Angular detecte cambios
     setTimeout(() => {
-      this.showAddModal = true;
-      console.log('✅ Modal abierto, showAddModal:', this.showAddModal);
-    }, 100);
+      this.ngZone.run(() => {
+        this.showAddModal = true;
+        this.cdr.detectChanges();
+        console.log('✅ Modal abierto');
+        console.log('Valores actuales en newEquipment:', this.newEquipment);
+      });
+    }, 150);
     
     console.log('=== onQRCodeScanned FIN ===');
   }
@@ -329,17 +334,31 @@ export class InventarioComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Verificar si la serie ya existe
+    // Verificar si la serie ya existe (solo si NO estamos editando)
     const existing = this.firebaseService.findEquipmentBySerial(this.newEquipment.serialNumber!);
-    if (existing) {
+    
+    // Si existe un equipo con ese número de serie Y no es el mismo que estamos editando
+    if (existing && existing.id !== this.newEquipment.id) {
       alert('Ya existe un equipo con ese número de serie');
       return;
     }
 
     this.savingEquipment = true;
     try {
-      await this.firebaseService.addEquipment(this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>);
-      alert('Equipo agregado exitosamente');
+      if (this.newEquipment.id) {
+        // ACTUALIZAR equipo existente
+        await this.firebaseService.updateEquipment(
+          this.newEquipment.id, 
+          this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
+        );
+        alert('Equipo actualizado exitosamente');
+      } else {
+        // CREAR nuevo equipo
+        await this.firebaseService.addEquipment(
+          this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
+        );
+        alert('Equipo agregado exitosamente');
+      }
       this.closeAddModal();
     } catch (error) {
       console.error('Error al guardar equipo:', error);

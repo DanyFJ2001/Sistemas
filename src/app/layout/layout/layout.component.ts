@@ -2,6 +2,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, RouterOutlet } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+
 
 @Component({
   selector: 'app-layout',
@@ -12,11 +14,20 @@ import { Router, RouterModule, RouterOutlet } from '@angular/router';
 })
 export class LayoutComponent implements OnInit {
   darkMode = true;
+  userEmail = '';
   
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.loadThemePreference();
+    this.loadUserInfo();
+  }
+
+  loadUserInfo(): void {
+    this.userEmail = this.authService.getUserEmail() || 'Usuario';
   }
 
   toggleTheme(): void {
@@ -42,6 +53,18 @@ export class LayoutComponent implements OnInit {
     } else {
       document.body.classList.add('light-mode');
       document.body.classList.remove('dark-mode');
+    }
+  }
+
+  async logout(): Promise<void> {
+    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+      try {
+        await this.authService.logout();
+        this.router.navigate(['/login']);
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        alert('Error al cerrar sesión');
+      }
     }
   }
 }

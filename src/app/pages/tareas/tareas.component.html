@@ -1,0 +1,315 @@
+<!-- src/app/components/tareas/tareas.component.html -->
+<div class="tareas-container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="titulo-seccion">
+      <h1>📋 Tareas WhatsApp</h1>
+      <div class="estado-bot" [ngClass]="estadoBot">
+        <span class="dot"></span>
+        Bot: {{ estadoBot }}
+      </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="estadisticas" *ngIf="estadisticas">
+      <div class="stat-card">
+        <div class="stat-numero">{{ estadisticas.total }}</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card pendientes">
+        <div class="stat-numero">{{ estadisticas.pendientes }}</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+      <div class="stat-card progreso">
+        <div class="stat-numero">{{ estadisticas.enProgreso }}</div>
+        <div class="stat-label">En Progreso</div>
+      </div>
+      <div class="stat-card completadas">
+        <div class="stat-numero">{{ estadisticas.completadas }}</div>
+        <div class="stat-label">Completadas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controles -->
+  <div class="controles">
+    <div class="filtros">
+      <input 
+        type="text" 
+        [(ngModel)]="busqueda" 
+        (ngModelChange)="aplicarFiltros()"
+        placeholder="🔍 Buscar..."
+        class="input-busqueda">
+
+      <select [(ngModel)]="filtroEstado" (ngModelChange)="aplicarFiltros()" class="filtro-select">
+        <option value="todos">Todos los estados</option>
+        <option value="pendiente">⏳ Pendientes</option>
+        <option value="en_progreso">🔄 En Progreso</option>
+        <option value="completada">✅ Completadas</option>
+      </select>
+
+      <select [(ngModel)]="filtroPrioridad" (ngModelChange)="aplicarFiltros()" class="filtro-select">
+        <option value="todos">Todas las prioridades</option>
+        <option value="alta">🔥 Alta</option>
+        <option value="media">⚡ Media</option>
+        <option value="baja">📌 Baja</option>
+      </select>
+
+      <select [(ngModel)]="filtroCategoria" (ngModelChange)="aplicarFiltros()" class="filtro-select">
+        <option value="todos">Todas las categorías</option>
+        <option value="general">📋 General</option>
+        <option value="soporte-tecnico">🔧 Soporte</option>
+        <option value="reunion">📅 Reunión</option>
+        <option value="diseño">🎨 Diseño</option>
+        <option value="documentacion">📄 Docs</option>
+        <option value="atencion-cliente">👥 Cliente</option>
+      </select>
+    </div>
+
+    <div class="acciones">
+      <button (click)="cargarTareas()" class="btn btn-refresh" [disabled]="cargando">
+        🔄 {{ cargando ? 'Cargando...' : 'Actualizar' }}
+      </button>
+      
+      <button (click)="toggleAutoActualizar()" 
+              [class.activo]="autoActualizar" 
+              class="btn btn-auto">
+        {{ autoActualizar ? '⏸️ Pausar' : '▶️ Reanudar' }}
+      </button>
+
+      <div class="vista-selector">
+        <button (click)="cambiarVista('tarjetas')" 
+                [class.activo]="vistaActual === 'tarjetas'"
+                class="btn btn-vista">🃏</button>
+        <button (click)="cambiarVista('lista')" 
+                [class.activo]="vistaActual === 'lista'"
+                class="btn btn-vista">📋</button>
+        <button (click)="cambiarVista('kanban')" 
+                [class.activo]="vistaActual === 'kanban'"
+                class="btn btn-vista">📊</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div *ngIf="cargando" class="loader">
+    <div class="spinner"></div>
+    <p>Cargando tareas...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="error-message">
+    ❌ {{ error }}
+    <button (click)="cargarTareas()" class="btn-retry">Reintentar</button>
+  </div>
+
+  <!-- Sin tareas -->
+  <div *ngIf="!cargando && !error && tareasFiltradas.length === 0" class="sin-tareas">
+    <span class="empty-icon">📭</span>
+    <h3>No hay tareas</h3>
+    <p>{{ busqueda ? 'No se encontraron resultados' : 'Esperando mensajes de WhatsApp...' }}</p>
+  </div>
+
+  <!-- VISTA TARJETAS -->
+  <div *ngIf="!cargando && !error && vistaActual === 'tarjetas'" class="tareas-grid">
+    <div *ngFor="let tarea of tareasFiltradas" class="tarea-card" [attr.data-prioridad]="tarea.prioridad">
+      
+      <div class="card-header">
+        <div class="card-badges">
+          <span class="badge badge-prioridad" [attr.data-prioridad]="tarea.prioridad">
+            {{ getEmojiPrioridad(tarea.prioridad) }}
+          </span>
+          <span class="badge badge-categoria">
+            {{ getIconoCategoria(tarea.categoria) }}
+          </span>
+        </div>
+        <span class="card-id">#{{ tarea.id }}</span>
+      </div>
+
+      <div class="card-body">
+        <h3 class="card-titulo">{{ tarea.titulo }}</h3>
+        <p class="card-descripcion">{{ tarea.descripcion }}</p>
+        
+        <div class="card-info">
+          <div class="info-item">
+            <span class="info-icon">👤</span>
+            <span>{{ tarea.remitente }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">⏰</span>
+            <span>{{ formatearFecha(tarea.fecha) }}</span>
+          </div>
+          <div class="info-item" *ngIf="tarea.menciones && tarea.menciones.length > 0">
+            <span class="info-icon">👥</span>
+            <span>{{ '@' }}{{ tarea.menciones.join(', @') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <select [(ngModel)]="tarea.estado" 
+                (ngModelChange)="cambiarEstadoTarea(tarea, $event)"
+                class="estado-select"
+                [attr.data-estado]="tarea.estado">
+          <option value="pendiente">⏳ Pendiente</option>
+          <option value="en_progreso">🔄 En Progreso</option>
+          <option value="completada">✅ Completada</option>
+        </select>
+
+        <div class="card-acciones">
+          <button (click)="completarTarea(tarea)" 
+                  *ngIf="tarea.estado !== 'completada'"
+                  class="btn-icon" 
+                  title="Completar">✅</button>
+          <button (click)="eliminarTarea(tarea)" 
+                  class="btn-icon btn-danger" 
+                  title="Eliminar">🗑️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA LISTA -->
+  <div *ngIf="!cargando && !error && vistaActual === 'lista'" class="tareas-lista">
+    <table class="tabla-tareas">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Título</th>
+          <th>De</th>
+          <th>Prioridad</th>
+          <th>Categoría</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let tarea of tareasFiltradas">
+          <td class="td-id">#{{ tarea.id }}</td>
+          <td class="td-titulo">
+            <strong>{{ tarea.titulo }}</strong>
+            <small *ngIf="tarea.menciones && tarea.menciones.length">
+              {{ '@' }}{{ tarea.menciones.join(' @') }}
+            </small>
+          </td>
+          <td>{{ tarea.remitente }}</td>
+          <td>
+            <span class="badge badge-prioridad" [attr.data-prioridad]="tarea.prioridad">
+              {{ getEmojiPrioridad(tarea.prioridad) }}
+            </span>
+          </td>
+          <td>
+            <span class="badge badge-categoria">
+              {{ getIconoCategoria(tarea.categoria) }}
+            </span>
+          </td>
+          <td>
+            <select [(ngModel)]="tarea.estado" 
+                    (ngModelChange)="cambiarEstadoTarea(tarea, $event)"
+                    class="estado-select-small"
+                    [attr.data-estado]="tarea.estado">
+              <option value="pendiente">⏳</option>
+              <option value="en_progreso">🔄</option>
+              <option value="completada">✅</option>
+            </select>
+          </td>
+          <td class="td-fecha">{{ formatearFecha(tarea.fecha) }}</td>
+          <td class="td-acciones">
+            <button (click)="completarTarea(tarea)" 
+                    *ngIf="tarea.estado !== 'completada'"
+                    class="btn-icon-small">✅</button>
+            <button (click)="eliminarTarea(tarea)" 
+                    class="btn-icon-small btn-danger">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- VISTA KANBAN -->
+  <div *ngIf="!cargando && !error && vistaActual === 'kanban'" class="kanban-board">
+    
+    <!-- Columna Pendientes -->
+    <div class="kanban-column">
+      <div class="column-header pendiente">
+        <h3>⏳ Pendientes</h3>
+        <span class="count">{{ getTareasPorEstado('pendiente').length }}</span>
+      </div>
+      <div class="column-body">
+        <div *ngFor="let tarea of getTareasPorEstado('pendiente')" 
+             class="kanban-card" 
+             [attr.data-prioridad]="tarea.prioridad">
+          <div class="kanban-header">
+            <span class="badge" [attr.data-prioridad]="tarea.prioridad">
+              {{ getEmojiPrioridad(tarea.prioridad) }}
+            </span>
+            <span class="badge">{{ getIconoCategoria(tarea.categoria) }}</span>
+          </div>
+          <h4>{{ tarea.titulo }}</h4>
+          <p>{{ tarea.descripcion.substring(0, 100) }}...</p>
+          <div class="kanban-footer">
+            <small>👤 {{ tarea.remitente }}</small>
+            <div class="kanban-acciones">
+              <button (click)="cambiarEstadoTarea(tarea, 'en_progreso')" class="btn-mini">▶️</button>
+              <button (click)="eliminarTarea(tarea)" class="btn-mini btn-danger">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna En Progreso -->
+    <div class="kanban-column">
+      <div class="column-header progreso">
+        <h3>🔄 En Progreso</h3>
+        <span class="count">{{ getTareasPorEstado('en_progreso').length }}</span>
+      </div>
+      <div class="column-body">
+        <div *ngFor="let tarea of getTareasPorEstado('en_progreso')" 
+             class="kanban-card">
+          <div class="kanban-header">
+            <span class="badge" [attr.data-prioridad]="tarea.prioridad">
+              {{ getEmojiPrioridad(tarea.prioridad) }}
+            </span>
+            <span class="badge">{{ getIconoCategoria(tarea.categoria) }}</span>
+          </div>
+          <h4>{{ tarea.titulo }}</h4>
+          <p>{{ tarea.descripcion.substring(0, 100) }}...</p>
+          <div class="kanban-footer">
+            <small>👤 {{ tarea.remitente }}</small>
+            <div class="kanban-acciones">
+              <button (click)="completarTarea(tarea)" class="btn-mini">✅</button>
+              <button (click)="cambiarEstadoTarea(tarea, 'pendiente')" class="btn-mini">⏪</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna Completadas -->
+    <div class="kanban-column">
+      <div class="column-header completada">
+        <h3>✅ Completadas</h3>
+        <span class="count">{{ getTareasPorEstado('completada').length }}</span>
+      </div>
+      <div class="column-body">
+        <div *ngFor="let tarea of getTareasPorEstado('completada')" 
+             class="kanban-card completada">
+          <div class="kanban-header">
+            <span class="badge">{{ getIconoCategoria(tarea.categoria) }}</span>
+          </div>
+          <h4>{{ tarea.titulo }}</h4>
+          <p>{{ tarea.descripcion.substring(0, 80) }}...</p>
+          <div class="kanban-footer">
+            <small>✅ {{ formatearFecha(tarea.fechaCompletada || tarea.fecha) }}</small>
+            <button (click)="eliminarTarea(tarea)" class="btn-mini btn-danger">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
