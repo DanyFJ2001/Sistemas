@@ -87,6 +87,23 @@
         Mantenimiento
       </button>
     </div>
+
+    <!-- NUEVO: Selector de Ordenamiento -->
+    <div class="sort-selector">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18"></path>
+        <path d="M7 12h10"></path>
+        <path d="M10 18h4"></path>
+      </svg>
+      <select 
+        class="form-select"
+        [(ngModel)]="selectedSort" 
+        (change)="onSortChange(selectedSort)">
+        <option *ngFor="let option of sortOptions" [value]="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+    </div>
   </div>
 
   <!-- Loading State -->

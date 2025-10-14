@@ -26,6 +26,19 @@ export class InventarioComponent implements OnInit, OnDestroy {
   selectedFilter = 'todos';
   savingEquipment = false;
   
+  // NUEVO: Ordenamiento
+  selectedSort = 'name-asc';
+  sortOptions = [
+    { value: 'name-asc', label: 'Nombre (A-Z)' },
+    { value: 'name-desc', label: 'Nombre (Z-A)' },
+    { value: 'serial-asc', label: 'N° Serie (A-Z)' },
+    { value: 'serial-desc', label: 'N° Serie (Z-A)' },
+    { value: 'category-asc', label: 'Categoría (A-Z)' },
+    { value: 'category-desc', label: 'Categoría (Z-A)' },
+    { value: 'date-newest', label: 'Más recientes' },
+    { value: 'date-oldest', label: 'Más antiguos' }
+  ];
+  
   // Scanner QR
   showQRScanner = false;
   scannerError = '';
@@ -97,9 +110,16 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.filterEquipment();
   }
 
+  // NUEVO: Cambiar ordenamiento
+  onSortChange(sortValue: string): void {
+    this.selectedSort = sortValue;
+    this.filterEquipment();
+  }
+
   filterEquipment(): void {
     let filtered = [...this.equipmentList];
 
+    // Aplicar búsqueda
     if (this.searchTerm) {
       filtered = filtered.filter(eq => 
         eq.name.toLowerCase().includes(this.searchTerm) ||
@@ -109,11 +129,57 @@ export class InventarioComponent implements OnInit, OnDestroy {
       );
     }
 
+    // Aplicar filtro por estado
     if (this.selectedFilter !== 'todos') {
       filtered = filtered.filter(eq => eq.status === this.selectedFilter);
     }
 
+    // NUEVO: Aplicar ordenamiento
+    filtered = this.sortEquipment(filtered);
+
     this.filteredEquipment = filtered;
+  }
+
+  // NUEVO: Método de ordenamiento
+  private sortEquipment(equipment: Equipment[]): Equipment[] {
+    const sorted = [...equipment];
+
+    switch (this.selectedSort) {
+      case 'name-asc':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      
+      case 'name-desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      
+      case 'serial-asc':
+        return sorted.sort((a, b) => a.serialNumber.localeCompare(b.serialNumber));
+      
+      case 'serial-desc':
+        return sorted.sort((a, b) => b.serialNumber.localeCompare(a.serialNumber));
+      
+      case 'category-asc':
+        return sorted.sort((a, b) => a.category.localeCompare(b.category));
+      
+      case 'category-desc':
+        return sorted.sort((a, b) => b.category.localeCompare(a.category));
+      
+      case 'date-newest':
+        return sorted.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA; // Más recientes primero
+        });
+      
+      case 'date-oldest':
+        return sorted.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateA - dateB; // Más antiguos primero
+        });
+      
+      default:
+        return sorted;
+    }
   }
 
   // ===== QR SCANNER =====
