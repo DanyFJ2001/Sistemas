@@ -1,0 +1,151 @@
+<div class="upload-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Subir Facturas</h1>
+      <p class="page-subtitle">Arrastra tus archivos XML o PDF para validar</p>
+    </div>
+    <button class="btn-secondary" (click)="goToDashboard()">
+      ← Volver al Dashboard
+    </button>
+  </div>
+
+  <!-- Upload Zone -->
+  <div 
+    class="upload-zone"
+    [class.dragging]="isDragging"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    (click)="fileInput.click()"
+  >
+    <div class="upload-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+    </div>
+    <h3>Arrastra tus archivos aquí</h3>
+    <p>o haz clic para seleccionar</p>
+    <span class="file-types">Formatos: .xml, .pdf (máx 10MB c/u)</span>
+    
+    <input 
+      #fileInput
+      type="file" 
+      multiple 
+      accept=".xml,.pdf"
+      (change)="onFileSelected($event)"
+      style="display: none;"
+    >
+  </div>
+
+  <!-- Selected Files -->
+  <div class="files-section" *ngIf="selectedFiles.length > 0 && !showResults">
+    <div class="section-header">
+      <h3>Archivos seleccionados ({{ selectedFiles.length }})</h3>
+      <button class="btn-link" (click)="clearAll()">Limpiar todo</button>
+    </div>
+
+    <div class="files-list">
+      <div class="file-item" *ngFor="let file of selectedFiles; let i = index">
+        <div class="file-icon">{{ getFileIcon(file.name) }}</div>
+        <div class="file-info">
+          <span class="file-name">{{ file.name }}</span>
+          <span class="file-size">{{ getFileSize(file) }}</span>
+        </div>
+        <button class="btn-remove" (click)="removeFile(i)" title="Quitar">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" (click)="validateAll()" [disabled]="isUploading">
+        <span *ngIf="!isUploading">🚀 Validar Todas</span>
+        <span *ngIf="isUploading">⏳ Validando...</span>
+      </button>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container" *ngIf="isUploading">
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+      </div>
+      <span class="progress-text">{{ uploadProgress }}%</span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" *ngIf="showResults">
+    <div class="section-header">
+      <h3>Resultados de Validación</h3>
+      <button class="btn-link" (click)="clearAll()">Nueva validación</button>
+    </div>
+
+    <div class="results-list">
+      <div 
+        class="result-card" 
+        *ngFor="let result of results; let i = index"
+        [class]="getStatusClass(result.status)"
+      >
+        <div class="result-header">
+          <div class="result-icon">
+            <span *ngIf="result.status === 'approved'">✅</span>
+            <span *ngIf="result.status === 'rejected'">❌</span>
+            <span *ngIf="result.status === 'review'">⚠️</span>
+          </div>
+          <div class="result-info">
+            <h4>{{ selectedFiles[i].name }}</h4>
+            <span class="badge" [class]="getStatusClass(result.status)">
+              {{ getStatusText(result.status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="result-body">
+          <p class="ai-analysis">{{ result.aiAnalysis }}</p>
+          
+          <!-- Errores -->
+          <div class="errors-list" *ngIf="result.errors.length > 0">
+            <h5>❌ Errores encontrados:</h5>
+            <ul>
+              <li *ngFor="let error of result.errors">
+                <strong>{{ error.field }}:</strong> {{ error.message }}
+              </li>
+            </ul>
+          </div>
+
+          <!-- Advertencias -->
+          <div class="warnings-list" *ngIf="result.warnings.length > 0">
+            <h5>⚠️ Advertencias:</h5>
+            <ul>
+              <li *ngFor="let warning of result.warnings">
+                <strong>{{ warning.field }}:</strong> {{ warning.message }}
+              </li>
+            </ul>
+          </div>
+
+          <div class="result-meta">
+            <span>Confianza: {{ (result.confidence * 100).toFixed(0) }}%</span>
+            <span>Tiempo: {{ result.processingTime.toFixed(2) }}s</span>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="btn-small" (click)="viewDetails(result, i)">
+            Ver Detalles
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-actions">
+      <button class="btn-primary" (click)="goToDashboard()">
+        Ir al Dashboard
+      </button>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,195 @@
+<div class="facturas-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Todas las Facturas</h1>
+      <p class="page-subtitle">{{ filteredInvoices.length }} facturas encontradas</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="refresh()" title="Actualizar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+      </button>
+      <button class="btn-secondary" (click)="exportData()" title="Exportar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </button>
+      <button class="btn-primary" (click)="goToUpload()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        Subir Facturas
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Cargando facturas...</p>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading">
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <button 
+        *ngFor="let status of statuses"
+        class="filter-tab"
+        [class.active]="statusFilter === status.value"
+        (click)="statusFilter = status.value; onStatusFilterChange()"
+      >
+        <span class="tab-icon">{{ status.icon }}</span>
+        <span class="tab-label">{{ status.label }}</span>
+        <span class="tab-count">{{ getStatusCount(status.value) }}</span>
+      </button>
+    </div>
+
+    <!-- Search and Filters Bar -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input 
+          type="text" 
+          placeholder="Buscar por archivo, proveedor, RUC o ID..."
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchChange()"
+        >
+        <button 
+          class="clear-search" 
+          *ngIf="searchQuery"
+          (click)="searchQuery = ''; onSearchChange()"
+        >
+          ✕
+        </button>
+      </div>
+      
+      <button 
+        class="btn-clear-filters" 
+        *ngIf="searchQuery || statusFilter !== 'all'"
+        (click)="clearFilters()"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredInvoices.length === 0">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+      <h3>No se encontraron facturas</h3>
+      <p>Intenta cambiar los filtros o sube nuevas facturas</p>
+      <button class="btn-primary" (click)="clearFilters()">Limpiar filtros</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container" *ngIf="filteredInvoices.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Archivo</th>
+            <th>Proveedor</th>
+            <th>RUC</th>
+            <th>Monto</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let invoice of paginatedInvoices">
+            <td class="id-cell">#{{ invoice.id }}</td>
+            <td class="file-cell">
+              <div class="file-info">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="file-name">{{ invoice.fileName }}</span>
+              </div>
+            </td>
+            <td>{{ invoice.supplier }}</td>
+            <td class="ruc-cell">{{ invoice.ruc }}</td>
+            <td class="amount-cell">{{ formatCurrency(invoice.amount) }}</td>
+            <td>
+              <span class="badge" [ngClass]="getStatusClass(invoice.status)">
+                {{ getStatusIcon(invoice.status) }} {{ getStatusText(invoice.status) }}
+              </span>
+            </td>
+            <td class="date-cell">{{ formatDate(invoice.date) }}</td>
+            <td class="actions-cell">
+              <button 
+                class="btn-icon" 
+                (click)="viewDetail(invoice.id)"
+                title="Ver detalle"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+              <button 
+                class="btn-icon btn-delete" 
+                (click)="deleteInvoice(invoice)"
+                title="Eliminar"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="filteredInvoices.length > 0">
+      <button 
+        class="page-btn"
+        [disabled]="currentPage === 1"
+        (click)="previousPage()"
+      >
+        ← Anterior
+      </button>
+      
+      <div class="page-numbers">
+        <button 
+          *ngFor="let page of pageNumbers"
+          class="page-number"
+          [class.active]="page === currentPage"
+          (click)="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+      </div>
+      
+      <button 
+        class="page-btn"
+        [disabled]="currentPage === totalPages"
+        (click)="nextPage()"
+      >
+        Siguiente →
+      </button>
+    </div>
+
+  </div>
+
+</div>
