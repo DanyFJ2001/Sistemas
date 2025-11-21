@@ -51,7 +51,7 @@ export interface ProcessingStatus {
 })
 export class MedicalProcessorService {
   
-private apiUrl = 'https://backenddoc-production.up.railway.app/api/process-clinical-history';
+private apiUrl = 'https://backenddoc-1.onrender.com/api/process-clinical-history';
   private processingStatusSubject = new BehaviorSubject<ProcessingStatus[]>([]);
   public processingStatus$ = this.processingStatusSubject.asObservable();
 
