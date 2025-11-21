@@ -30,33 +30,12 @@ export const routes: Routes = [
         path: 'tareas',
         loadComponent: () => import('./pages/tareas/tareas.component').then(m => m.TareasComponent)
       },
-      // ⭐ NUEVA RUTA DE CONTABILIDAD
       {
-        path: 'contabilidad',
-        children: [
-          {
-            path: '',
-            redirectTo: 'dashboard',
-            pathMatch: 'full'
-          },
-          {
-            path: 'dashboard',
-            loadComponent: () => import('./contabilidad/pages/dashboard/dashboard.component').then(m => m.DashboardComponent)
-          },
-          {
-            path: 'upload',
-            loadComponent: () => import('./contabilidad/pages/upload/upload.component').then(m => m.UploadComponent)
-          },
-          {
-            path: 'facturas',
-            loadComponent: () => import('./contabilidad/pages/facturas/facturas.component').then(m => m.FacturasComponent)
-          },
-          {
-            path: 'detalle/:id',
-            loadComponent: () => import('./contabilidad/pages/detalle/detalle.component').then(m => m.DetalleComponent)
-          }
-        ]
-      }
+        path: 'Ai',
+        loadComponent: () => import('./pages/automatizaciones/automatizaciones.component').then(m => m.AutomatizacionesComponent)
+      },
+      
+     
     ]
   },
   {

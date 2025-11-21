@@ -1,0 +1,286 @@
+<div class="automatizaciones-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <button class="back-button" routerLink="/">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div>
+        <h1 class="page-title">Procesador de Certificados Médicos</h1>
+        <p class="page-subtitle">Extracción automatizada con IA</p>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          📄
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Archivos</span>
+          <span class="stat-value">{{ stats.total }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+          ✅
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Procesados</span>
+          <span class="stat-value">{{ stats.procesados }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+          ❌
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Errores</span>
+          <span class="stat-value">{{ stats.errores }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+          🤖
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Estado</span>
+          <span class="stat-value">{{ isProcessing ? 'Procesando' : 'Listo' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Left Panel: Upload & Preview -->
+    <div class="left-panel">
+      <!-- Upload Zone -->
+      <div class="upload-section" *ngIf="!selectedPdfPreview">
+        <div 
+          class="dropzone"
+          [class.dragging]="isDragging"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+        >
+          <div class="dropzone-content">
+            <div class="upload-icon">
+              📤
+            </div>
+            <h3 class="upload-title">Arrastra tus PDFs aquí</h3>
+            <p class="upload-description">o haz clic para seleccionar archivos</p>
+            <input 
+              type="file" 
+              id="fileInput" 
+              class="file-input" 
+              accept=".pdf"
+              multiple
+              (change)="onFileSelected($event)"
+            />
+            <label for="fileInput" class="btn-primary">
+              Seleccionar Archivos
+            </label>
+            <p class="upload-hint">Soporta archivos PDF • Máximo 10 archivos</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF Preview con Animación de Escaneo -->
+      <div class="preview-section" *ngIf="selectedPdfPreview">
+        <div class="preview-header">
+          <h3 class="preview-title">Vista Previa</h3>
+          <button class="btn-secondary-sm" (click)="limpiar()">
+            Cambiar archivos
+          </button>
+        </div>
+
+        <div class="pdf-preview-container">
+          <!-- Vista previa del PDF -->
+          <div class="pdf-preview">
+            <embed 
+              [src]="selectedPdfPreview" 
+              type="application/pdf" 
+              class="pdf-embed"
+            />
+            
+            <!-- Overlays de escaneo animado -->
+            <div class="scan-overlays" *ngIf="isProcessing">
+              <!-- Línea de escaneo laser -->
+              <div class="scan-line" [class.scanning]="isProcessing"></div>
+              
+              <!-- Highlight areas detectadas -->
+              <div 
+                class="highlight-box aptitud-box" 
+                [class.active]="currentScanningArea === 'aptitud'"
+                *ngIf="currentScanningArea === 'aptitud'"
+              >
+                <span class="highlight-label">🎯 Detectando Aptitud Médica</span>
+              </div>
+
+              <div 
+                class="highlight-box diagnostico-box" 
+                [class.active]="currentScanningArea === 'diagnosticos'"
+                *ngIf="currentScanningArea === 'diagnosticos'"
+              >
+                <span class="highlight-label">🔍 Extrayendo Diagnósticos</span>
+              </div>
+
+              <div 
+                class="highlight-box examenes-box" 
+                [class.active]="currentScanningArea === 'examenes'"
+                *ngIf="currentScanningArea === 'examenes'"
+              >
+                <span class="highlight-label">📊 Analizando Exámenes</span>
+              </div>
+
+              <div 
+                class="complete-overlay" 
+                [class.active]="currentScanningArea === 'complete'"
+                *ngIf="currentScanningArea === 'complete'"
+              >
+                <div class="complete-checkmark">✓</div>
+                <span class="complete-text">Análisis Completado</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Info del archivo y progreso -->
+          <div class="file-info">
+            <div class="file-details">
+              <svg class="file-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div>
+                <p class="file-name">{{ selectedPdfName }}</p>
+                <p class="file-count">{{ selectedFiles.length }} archivo(s) seleccionado(s)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progreso de procesamiento -->
+          <div class="processing-status" *ngIf="processingStatuses.length > 0">
+            <div class="status-item" *ngFor="let status of processingStatuses">
+              <div class="status-header">
+                <span class="status-icon">{{ getStatusIcon(status.status) }}</span>
+                <span class="status-filename">{{ status.fileName }}</span>
+              </div>
+              <div class="progress-bar-container">
+                <div 
+                  class="progress-bar-fill" 
+                  [style.width.%]="status.progress"
+                  [class.converting]="status.status === 'converting'"
+                  [class.analyzing]="status.status === 'analyzing'"
+                  [class.completed]="status.status === 'completed'"
+                ></div>
+              </div>
+              <span class="status-message">{{ status.message }}</span>
+            </div>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="action-buttons">
+            <button 
+              class="btn-primary btn-large"
+              (click)="procesarArchivos()"
+              [disabled]="isProcessing || selectedFiles.length === 0"
+            >
+              <span *ngIf="!isProcessing">🚀 Procesar con IA</span>
+              <span *ngIf="isProcessing">
+                <span class="spinner"></span> Procesando...
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Results -->
+    <div class="right-panel">
+      <div class="results-section">
+        <div class="results-header">
+          <h3 class="results-title">
+            Resultados Extraídos
+            <span class="results-count" *ngIf="results.length > 0">({{ results.length }})</span>
+          </h3>
+          <button 
+            class="btn-export"
+            (click)="exportarExcel()"
+            *ngIf="results.length > 0"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.66699 6.66699L8.00033 10.0003L11.3337 6.66699" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 10V2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Exportar Excel
+          </button>
+        </div>
+
+        <!-- Estado vacío -->
+        <div class="empty-state" *ngIf="results.length === 0 && !isProcessing">
+          <div class="empty-icon">📋</div>
+          <p class="empty-title">No hay resultados aún</p>
+          <p class="empty-description">Los datos extraídos aparecerán aquí después del procesamiento</p>
+        </div>
+
+        <!-- Tabla de resultados -->
+        <div class="results-table-container" *ngIf="results.length > 0">
+          <div class="table-scroll">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Cédula</th>
+                  <th>Nombre Completo</th>
+                  <th>Edad</th>
+                  <th>Género</th>
+                  <th>Aptitud Médica</th>
+                  <th>Diagnóstico Principal</th>
+                  <th>CIE-10</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of results; let i = index" class="table-row" 
+                    [style.animation-delay.ms]="i * 50">
+                  <td>
+                    <span class="badge badge-neutral">{{ item.cedula }}</span>
+                  </td>
+                  <td class="name-cell">{{ item.nombreCompleto }}</td>
+                  <td>
+                    <span class="badge badge-neutral">{{ item.edad }}</span>
+                  </td>
+                  <td>
+                    <span class="badge" 
+                      [style.background-color]="item.genero === 'Masculino' ? '#3b82f6' : '#ec4899'"
+                      style="color: white;">
+                      {{ item.genero === 'Masculino' ? '♂' : '♀' }} {{ item.genero }}
+                    </span>
+                  </td>
+                  <td>
+                    <span 
+                      class="badge badge-aptitud" 
+                      [style.background-color]="getAptitudColor(item.aptitudMedica)"
+                    >
+                      {{ item.aptitudMedica }}
+                    </span>
+                  </td>
+                  <td class="diagnostic-cell">{{ item.diagnostico1 }}</td>
+                  <td>
+                    <code class="cie-code">{{ item.cie10_diagnostico1 }}</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
