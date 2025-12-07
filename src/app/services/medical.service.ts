@@ -9,6 +9,7 @@ export interface CertificadoMedico {
   nombre: string;
   apellido: string;
   nombreCompleto: string;
+  fechaNacimiento: string;
   edad: string;
   genero: string;
   aptitudMedica: string;
@@ -50,8 +51,8 @@ export interface ProcessingStatus {
   providedIn: 'root'
 })
 export class MedicalProcessorService {
-  
-private apiUrl = 'https://backenddoc-1.onrender.com/api/process-clinical-history';
+  private apiUrl = 'http://localhost:3001/api/process-clinical-history';
+
   private processingStatusSubject = new BehaviorSubject<ProcessingStatus[]>([]);
   public processingStatus$ = this.processingStatusSubject.asObservable();
 
@@ -244,32 +245,104 @@ private apiUrl = 'https://backenddoc-1.onrender.com/api/process-clinical-history
   }
 
   exportToExcel(data: CertificadoMedico[]): void {
-    const headers = [
-      'Archivo', 'Cédula', 'Nombre Completo', 'Edad', 'Género',
-      'Aptitud Médica', 'Diagnóstico 1', 'CIE-10 Diag. 1', 'Observaciones 1',
-      'Diagnóstico 2', 'CIE-10 Diag. 2', 'Observaciones 2',
-      'Hallazgo Metabólico', 'Hallazgo Osteomuscular', 'Otros Antecedentes'
-    ];
+    // Crear contenido HTML de tabla para Excel
+    let htmlTable = `
+      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            font-family: Arial, sans-serif;
+          }
+          th { 
+            background-color: #667eea; 
+            color: white; 
+            font-weight: bold; 
+            padding: 12px 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+          }
+          td { 
+            padding: 10px 8px; 
+            border: 1px solid #ddd;
+            vertical-align: top;
+          }
+          tr:nth-child(even) { 
+            background-color: #f9fafb; 
+          }
+          .header-row {
+            background-color: #667eea !important;
+          }
+        </style>
+      </head>
+      <body>
+        <table border="1">
+          <thead>
+            <tr class="header-row">
+              <th>Archivo</th>
+              <th>Cédula</th>
+              <th>Nombre Completo</th>
+              <th>Fecha Nacimiento</th>
+              <th>Edad</th>
+              <th>Género</th>
+              <th>Aptitud Médica</th>
+              <th>Diagnóstico 1</th>
+              <th>CIE-10 Diag. 1</th>
+              <th>Observaciones 1</th>
+              <th>Diagnóstico 2</th>
+              <th>CIE-10 Diag. 2</th>
+              <th>Observaciones 2</th>
+              <th>Hallazgo Metabólico</th>
+              <th>Hallazgo Osteomuscular</th>
+              <th>Otros Antecedentes</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
 
-    const rows = data.map(item => [
-      item.fileName, item.cedula, item.nombreCompleto, item.edad, item.genero,
-      item.aptitudMedica, item.diagnostico1, item.cie10_diagnostico1,
-      item.observaciones1, item.diagnostico2, item.cie10_diagnostico2,
-      item.observaciones2, item.hallazgoMetabolico,
-      item.hallazgoOsteomuscular, item.otrosAntecedentes
-    ]);
+    // Agregar filas de datos
+    data.forEach(item => {
+      htmlTable += `
+        <tr>
+          <td>${item.fileName}</td>
+          <td>${item.cedula}</td>
+          <td>${item.nombreCompleto || item.nombre + ' ' + item.apellido}</td>
+          <td>${item.fechaNacimiento || 'N/A'}</td>
+          <td>${item.edad || 'N/A'}</td>
+          <td>${item.genero || 'N/A'}</td>
+          <td>${item.aptitudMedica}</td>
+          <td>${item.diagnostico1}</td>
+          <td>${item.cie10_diagnostico1}</td>
+          <td>${item.observaciones1}</td>
+          <td>${item.diagnostico2}</td>
+          <td>${item.cie10_diagnostico2}</td>
+          <td>${item.observaciones2}</td>
+          <td>${item.hallazgoMetabolico}</td>
+          <td>${item.hallazgoOsteomuscular}</td>
+          <td>${item.otrosAntecedentes}</td>
+        </tr>
+      `;
+    });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    htmlTable += `
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Crear blob y descargar
+    const blob = new Blob([htmlTable], { 
+      type: 'application/vnd.ms-excel;charset=utf-8;' 
+    });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
+    const fecha = new Date().toISOString().split('T')[0];
     link.setAttribute('href', url);
-    link.setAttribute('download', `certificados_medicos_${Date.now()}.csv`);
+    link.setAttribute('download', `Certificados_Medicos_${fecha}.xls`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
