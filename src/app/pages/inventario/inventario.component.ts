@@ -65,7 +65,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
   sucursales = [
     'Matriz',
     'Sucursal Norte',
-    'Sucursal Sur',
+    'Sucursal Shyris',
     'Sucursal Centro',
     'Almacén'
   ];
@@ -89,6 +89,10 @@ export class InventarioComponent implements OnInit, OnDestroy {
     { value: 'asignado', label: 'Asignado' },
     { value: 'mantenimiento', label: 'Mantenimiento' },
   ];
+
+  // NUEVO: Modal de vista (solo lectura)
+  showViewModal = false;
+  viewedEquipment: Equipment | null = null;
 
   constructor(
     private firebaseService: FirebaseService,
@@ -261,7 +265,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
         { facingMode: 'environment' },
         config,
         (decodedText) => {
-          if (!this.showAddModal && !this.isScanning) {
+          if (!this.showAddModal && !this.showViewModal && !this.isScanning) {
             this.isScanning = true;
             this.ngZone.run(() => {
               this.onCodeScanned(decodedText);
@@ -291,17 +295,21 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
     // Buscar si ya existe un equipo con este código
     const existing = this.equipmentList.find(
-      (eq) => eq.codigo === code || eq.qrCode === code
+      (eq) => eq.codigo === code || eq.qrCode === code || eq.serialNumber === code
     );
 
     this.closeQRScanner();
 
     if (existing) {
-      // Equipo existente: abrir modal de estado
-      console.log('📦 Equipo encontrado:', existing);
-      this.openStatusChangeModal(existing);
+      // ✅ EQUIPO YA EXISTE: Mostrar modal de SOLO LECTURA
+      console.log('📦 Equipo encontrado, mostrando datos...');
+      console.log('📝 Datos:', existing);
+      
+      this.viewedEquipment = existing;
+      this.showViewModal = true;
+      
     } else {
-      // Equipo nuevo: abrir formulario con código prellenado
+      // ✅ EQUIPO NUEVO: Abrir formulario para crear
       console.log('🆕 Equipo nuevo, abriendo formulario...');
       this.newEquipment = this.getEmptyEquipment();
       this.newEquipment.codigo = code;
@@ -460,25 +468,25 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ===== MODAL DE VISTA (SOLO LECTURA) =====
+  closeViewModal(): void {
+    this.showViewModal = false;
+    this.viewedEquipment = null;
+  }
+
+  editFromView(): void {
+    if (this.viewedEquipment) {
+      this.newEquipment = { ...this.viewedEquipment };
+      this.closeViewModal();
+      this.showAddModal = true;
+    }
+  }
+
   // ===== ACCIONES DE EQUIPO =====
   viewEquipment(equipment: Equipment): void {
-    const details = `
-      DETALLES DEL EQUIPO
-      
-      Código: ${equipment.codigo}
-      Año: ${equipment.anio}
-      Nombre: ${equipment.name}
-      Sucursal: ${equipment.sucursal}
-      Área: ${equipment.area}
-      N° Serie: ${equipment.serialNumber}
-      Marca: ${equipment.marca}
-      Modelo: ${equipment.model}
-      Estado: ${equipment.status}
-      Accesorios: ${equipment.accesorios || '-'}
-      Responsable: ${equipment.responsable || '-'}
-      Observaciones: ${equipment.observaciones || '-'}
-    `;
-    alert(details);
+    // Abrir modal de vista
+    this.viewedEquipment = equipment;
+    this.showViewModal = true;
   }
 
   async editEquipment(equipment: Equipment): Promise<void> {
