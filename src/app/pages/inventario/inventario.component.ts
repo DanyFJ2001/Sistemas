@@ -1,5 +1,13 @@
 // src/app/pages/inventario/inventario.component.ts
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  NgZone,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -11,56 +19,76 @@ import { Html5Qrcode } from 'html5-qrcode';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './inventario.component.html',
-  styleUrl: './inventario.component.css'
+  styleUrl: './inventario.component.css',
 })
 export class InventarioComponent implements OnInit, OnDestroy {
   @ViewChild('qrReader') qrReader!: ElementRef<HTMLDivElement>;
-  
+
   private destroy$ = new Subject<void>();
   private html5QrCode: Html5Qrcode | null = null;
   private isScanning = false;
   private startQRScannerTimeout?: any;
-  
+
   loading = true;
   searchTerm = '';
   selectedFilter = 'todos';
   savingEquipment = false;
-  
-  // NUEVO: Ordenamiento
+
+  // Ordenamiento
   selectedSort = 'name-asc';
   sortOptions = [
     { value: 'name-asc', label: 'Nombre (A-Z)' },
     { value: 'name-desc', label: 'Nombre (Z-A)' },
     { value: 'serial-asc', label: 'N° Serie (A-Z)' },
     { value: 'serial-desc', label: 'N° Serie (Z-A)' },
-    { value: 'category-asc', label: 'Categoría (A-Z)' },
-    { value: 'category-desc', label: 'Categoría (Z-A)' },
+    { value: 'codigo-asc', label: 'Código (A-Z)' },
+    { value: 'codigo-desc', label: 'Código (Z-A)' },
     { value: 'date-newest', label: 'Más recientes' },
-    { value: 'date-oldest', label: 'Más antiguos' }
+    { value: 'date-oldest', label: 'Más antiguos' },
   ];
-  
+
   // Scanner QR
   showQRScanner = false;
   scannerError = '';
-  
+
   // Modal agregar equipo
   showAddModal = false;
-  newEquipment: Partial<Equipment> = {
-    name: '',
-    model: '',
-    serialNumber: '',
-    category: 'Laptop',
-    status: 'disponible',
-    assignedTo: '',
-    purchaseDate: ''
-  };
-  
+  newEquipment: Partial<Equipment> = this.getEmptyEquipment();
+
   // Lista de equipos
   equipmentList: Equipment[] = [];
   filteredEquipment: Equipment[] = [];
-  
-  // Categorías disponibles
+
+  // Opciones para selectores
   categories = ['Laptop', 'PC', 'Monitor', 'Impresora', 'Tablet', 'Servidor', 'Otro'];
+  
+  sucursales = [
+    'Matriz',
+    'Sucursal Norte',
+    'Sucursal Sur',
+    'Sucursal Centro',
+    'Almacén'
+  ];
+
+  areas = [
+    'Administración',
+    'Sistemas',
+    'Recursos Humanos',
+    'Contabilidad',
+    'Ventas',
+    'Operaciones',
+    'Laboratorio',
+    'Salud Ocupacional'
+  ];
+
+  // Modal de estado
+  showStatusModal = false;
+  selectedEquipment: Equipment | null = null;
+  statusOptions = [
+    { value: 'disponible', label: 'Disponible' },
+    { value: 'asignado', label: 'Asignado' },
+    { value: 'mantenimiento', label: 'Mantenimiento' },
+  ];
 
   constructor(
     private firebaseService: FirebaseService,
@@ -81,10 +109,31 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.stopQRScanner();
   }
 
+  private getEmptyEquipment(): Partial<Equipment> {
+    const currentYear = new Date().getFullYear().toString();
+    return {
+      codigo: '',
+      anio: currentYear,
+      name: '',
+      sucursal: 'Matriz',
+      area: 'Administración',
+      serialNumber: '',
+      marca: '',
+      model: '',
+      status: 'disponible',
+      accesorios: '',
+      responsable: '',
+      observaciones: '',
+      category: 'Laptop',
+      purchaseDate: '',
+    };
+  }
+
   loadEquipment(): void {
     this.loading = true;
-    
-    this.firebaseService.getEquipment()
+
+    this.firebaseService
+      .getEquipment()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (equipment) => {
@@ -95,7 +144,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
         error: (error) => {
           console.error('Error cargando inventario:', error);
           this.loading = false;
-        }
+        },
       });
   }
 
@@ -110,7 +159,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.filterEquipment();
   }
 
-  // NUEVO: Cambiar ordenamiento
   onSortChange(sortValue: string): void {
     this.selectedSort = sortValue;
     this.filterEquipment();
@@ -121,75 +169,69 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
     // Aplicar búsqueda
     if (this.searchTerm) {
-      filtered = filtered.filter(eq => 
-        eq.name.toLowerCase().includes(this.searchTerm) ||
-        eq.model.toLowerCase().includes(this.searchTerm) ||
-        eq.serialNumber.toLowerCase().includes(this.searchTerm) ||
-        eq.category.toLowerCase().includes(this.searchTerm)
+      filtered = filtered.filter(
+        (eq) =>
+          eq.name.toLowerCase().includes(this.searchTerm) ||
+          eq.model.toLowerCase().includes(this.searchTerm) ||
+          eq.serialNumber.toLowerCase().includes(this.searchTerm) ||
+          eq.codigo.toLowerCase().includes(this.searchTerm) ||
+          eq.marca.toLowerCase().includes(this.searchTerm) ||
+          eq.responsable?.toLowerCase().includes(this.searchTerm) ||
+          eq.area.toLowerCase().includes(this.searchTerm)
       );
     }
 
     // Aplicar filtro por estado
     if (this.selectedFilter !== 'todos') {
-      filtered = filtered.filter(eq => eq.status === this.selectedFilter);
+      filtered = filtered.filter((eq) => eq.status === this.selectedFilter);
     }
 
-    // NUEVO: Aplicar ordenamiento
+    // Aplicar ordenamiento
     filtered = this.sortEquipment(filtered);
 
     this.filteredEquipment = filtered;
   }
 
-  // NUEVO: Método de ordenamiento
   private sortEquipment(equipment: Equipment[]): Equipment[] {
     const sorted = [...equipment];
 
     switch (this.selectedSort) {
       case 'name-asc':
         return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      
       case 'name-desc':
         return sorted.sort((a, b) => b.name.localeCompare(a.name));
-      
       case 'serial-asc':
         return sorted.sort((a, b) => a.serialNumber.localeCompare(b.serialNumber));
-      
       case 'serial-desc':
         return sorted.sort((a, b) => b.serialNumber.localeCompare(a.serialNumber));
-      
-      case 'category-asc':
-        return sorted.sort((a, b) => a.category.localeCompare(b.category));
-      
-      case 'category-desc':
-        return sorted.sort((a, b) => b.category.localeCompare(a.category));
-      
+      case 'codigo-asc':
+        return sorted.sort((a, b) => a.codigo.localeCompare(b.codigo));
+      case 'codigo-desc':
+        return sorted.sort((a, b) => b.codigo.localeCompare(a.codigo));
       case 'date-newest':
         return sorted.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA; // Más recientes primero
+          return dateB - dateA;
         });
-      
       case 'date-oldest':
         return sorted.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateA - dateB; // Más antiguos primero
+          return dateA - dateB;
         });
-      
       default:
         return sorted;
     }
   }
 
-  // ===== QR SCANNER =====
+  // ===== QR/BARCODE SCANNER =====
   async openScanQR(): Promise<void> {
-    console.log('📷 Abriendo scanner QR...');
+    console.log('📷 Abriendo scanner...');
     this.showQRScanner = true;
     this.scannerError = '';
     this.isScanning = false;
-    
-    // Esperar a que el DOM se actualice
+
     this.startQRScannerTimeout = setTimeout(() => {
       this.startQRScanner();
     }, 200);
@@ -203,37 +245,31 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
       this.html5QrCode = new Html5Qrcode('qr-reader');
       this.isScanning = false;
-      
-      // Verificar cámaras disponibles
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) {
-          throw new Error('No se encontraron cámaras disponibles');
-        }
-      } catch (err) {
-        throw new Error('No se pudo acceder a las cámaras. Verifica los permisos.');
+
+      const devices = await Html5Qrcode.getCameras();
+      if (!devices || devices.length === 0) {
+        throw new Error('No se encontraron cámaras disponibles');
       }
-      
+
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+        aspectRatio: 1.0,
       };
 
       await this.html5QrCode.start(
         { facingMode: 'environment' },
         config,
         (decodedText) => {
-          // Solo procesar si NO hay modal abierto
           if (!this.showAddModal && !this.isScanning) {
             this.isScanning = true;
             this.ngZone.run(() => {
-              this.onQRCodeScanned(decodedText);
+              this.onCodeScanned(decodedText);
             });
           }
         },
         (errorMessage) => {
-          // Ignorar errores de búsqueda de QR
+          // Ignorar errores de búsqueda
         }
       );
 
@@ -241,110 +277,59 @@ export class InventarioComponent implements OnInit, OnDestroy {
     } catch (error: any) {
       console.error('Error al iniciar scanner:', error);
       this.ngZone.run(() => {
-        this.scannerError = error?.message || 'No se pudo acceder a la cámara. Permite el acceso en tu navegador.';
+        this.scannerError =
+          error?.message || 'No se pudo acceder a la cámara.';
         this.showQRScanner = false;
       });
     }
   }
 
-  onQRCodeScanned(code: string): void {
-    console.log('=== onQRCodeScanned INICIO ===');
-    console.log('🎯 Código recibido:', code);
-    
-    // Detener el scanner inmediatamente
+  onCodeScanned(code: string): void {
+    console.log('🎯 Código escaneado:', code);
+
     this.stopQRScanner();
-    
-    // Intentar parsear como JSON
-    let parsedData: any = null;
-    let serialNumber = code;
-    
-    try {
-      parsedData = JSON.parse(code);
-      console.log('✅ QR parseado como JSON:', parsedData);
-      serialNumber = parsedData.serialNumber || code;
-    } catch (error) {
-      console.log('ℹ️ QR no es JSON, usando como número de serie simple');
-    }
-    
-    // Buscar si el equipo ya existe
-    const existing = this.firebaseService.findEquipmentBySerial(serialNumber);
-    
-    if (existing) {
-      console.log('⚠️ Equipo ya existe:', existing);
-      alert(`Equipo ya registrado:\n${existing.name}\nModelo: ${existing.model}\nSerie: ${existing.serialNumber}`);
-      this.closeQRScanner();
-      return;
-    }
-    
-    console.log('✅ Equipo nuevo, preparando datos...');
-    
-    // Cerrar scanner primero
+
+    // Buscar si ya existe un equipo con este código
+    const existing = this.equipmentList.find(
+      (eq) => eq.codigo === code || eq.qrCode === code
+    );
+
     this.closeQRScanner();
-    
-    // Preparar datos del nuevo equipo
-    if (parsedData && typeof parsedData === 'object') {
-      // QR con JSON completo
-      console.log('📦 Llenando con datos del JSON...');
-      this.newEquipment = {
-        name: parsedData.name || '',
-        model: parsedData.model || '',
-        serialNumber: parsedData.serialNumber || serialNumber,
-        qrCode: code,
-        category: parsedData.category || 'Laptop',
-        status: parsedData.status || 'disponible',
-        assignedTo: parsedData.assignedTo || '',
-        purchaseDate: parsedData.purchaseDate || ''
-      };
-      
-      console.log('Datos asignados:', {
-        name: this.newEquipment.name,
-        model: this.newEquipment.model,
-        serialNumber: this.newEquipment.serialNumber,
-        category: this.newEquipment.category
-      });
+
+    if (existing) {
+      // Equipo existente: abrir modal de estado
+      console.log('📦 Equipo encontrado:', existing);
+      this.openStatusChangeModal(existing);
     } else {
-      // QR simple
-      console.log('📝 QR simple, solo número de serie');
-      this.newEquipment = {
-        name: '',
-        model: '',
-        serialNumber: serialNumber,
-        qrCode: code,
-        category: 'Laptop',
-        status: 'disponible',
-        assignedTo: '',
-        purchaseDate: ''
-      };
+      // Equipo nuevo: abrir formulario con código prellenado
+      console.log('🆕 Equipo nuevo, abriendo formulario...');
+      this.newEquipment = this.getEmptyEquipment();
+      this.newEquipment.codigo = code;
+      this.newEquipment.qrCode = code;
+
+      setTimeout(() => {
+        this.ngZone.run(() => {
+          this.showAddModal = true;
+          this.cdr.detectChanges();
+          console.log('✅ Modal abierto para nuevo equipo');
+        });
+      }, 150);
     }
-    
-    // Abrir modal con delay para asegurar que Angular detecte cambios
-    setTimeout(() => {
-      this.ngZone.run(() => {
-        this.showAddModal = true;
-        this.cdr.detectChanges();
-        console.log('✅ Modal abierto');
-        console.log('Valores actuales en newEquipment:', this.newEquipment);
-      });
-    }, 150);
-    
-    console.log('=== onQRCodeScanned FIN ===');
   }
 
-  // Método para testing sin cámara
   simulateQRScan(): void {
     const testCode = 'TEST-' + Date.now().toString().slice(-6);
-    console.log('🧪 Simulando QR:', testCode);
-    
+    console.log('🧪 Simulando código:', testCode);
+
     this.ngZone.run(() => {
-      this.onQRCodeScanned(testCode);
+      this.onCodeScanned(testCode);
     });
   }
 
   closeQRScanner(): void {
     this.showQRScanner = false;
     this.isScanning = false;
-    
-    // Detener el scanner con delay
+
     setTimeout(() => {
       this.stopQRScanner();
     }, 100);
@@ -352,7 +337,8 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   private stopQRScanner(): void {
     if (this.html5QrCode) {
-      this.html5QrCode.stop()
+      this.html5QrCode
+        .stop()
         .then(() => {
           this.html5QrCode?.clear();
           this.html5QrCode = null;
@@ -367,17 +353,9 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ===== MODAL AGREGAR EQUIPO =====
+  // ===== MODAL AGREGAR/EDITAR EQUIPO =====
   openAddModal(): void {
-    this.newEquipment = {
-      name: '',
-      model: '',
-      serialNumber: '',
-      category: 'Laptop',
-      status: 'disponible',
-      assignedTo: '',
-      purchaseDate: ''
-    };
+    this.newEquipment = this.getEmptyEquipment();
     this.showAddModal = true;
   }
 
@@ -389,22 +367,38 @@ export class InventarioComponent implements OnInit, OnDestroy {
   async saveEquipment(): Promise<void> {
     if (this.savingEquipment) return;
 
-    if (!this.newEquipment.name || !this.newEquipment.model || !this.newEquipment.serialNumber) {
-      alert('Por favor completa todos los campos obligatorios');
+    // Validar campos obligatorios
+    if (
+      !this.newEquipment.codigo ||
+      !this.newEquipment.name ||
+      !this.newEquipment.serialNumber ||
+      !this.newEquipment.marca ||
+      !this.newEquipment.model
+    ) {
+      alert('Por favor completa todos los campos obligatorios (*)');
       return;
     }
 
-    // Validar categoría
-    if (!this.categories.includes(this.newEquipment.category!)) {
-      alert('Categoría inválida');
+    // Verificar código duplicado
+    const existingCode = this.equipmentList.find(
+      (eq) =>
+        eq.codigo === this.newEquipment.codigo &&
+        eq.id !== this.newEquipment.id
+    );
+
+    if (existingCode) {
+      alert('Ya existe un equipo con ese código');
       return;
     }
 
-    // Verificar si la serie ya existe (solo si NO estamos editando)
-    const existing = this.firebaseService.findEquipmentBySerial(this.newEquipment.serialNumber!);
-    
-    // Si existe un equipo con ese número de serie Y no es el mismo que estamos editando
-    if (existing && existing.id !== this.newEquipment.id) {
+    // Verificar serie duplicada
+    const existingSerial = this.equipmentList.find(
+      (eq) =>
+        eq.serialNumber === this.newEquipment.serialNumber &&
+        eq.id !== this.newEquipment.id
+    );
+
+    if (existingSerial) {
       alert('Ya existe un equipo con ese número de serie');
       return;
     }
@@ -412,14 +406,16 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.savingEquipment = true;
     try {
       if (this.newEquipment.id) {
-        // ACTUALIZAR equipo existente
+        // ACTUALIZAR
+        console.log('📝 Actualizando equipo:', this.newEquipment);
         await this.firebaseService.updateEquipment(
-          this.newEquipment.id, 
+          this.newEquipment.id,
           this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
         );
         alert('Equipo actualizado exitosamente');
       } else {
-        // CREAR nuevo equipo
+        // CREAR NUEVO
+        console.log('💾 Guardando nuevo equipo:', this.newEquipment);
         await this.firebaseService.addEquipment(
           this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
         );
@@ -434,14 +430,58 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ===== MODAL DE ESTADO =====
+  openStatusChangeModal(equipment: Equipment): void {
+    this.selectedEquipment = { ...equipment };
+    this.showStatusModal = true;
+  }
+
+  closeStatusModal(): void {
+    this.showStatusModal = false;
+    this.selectedEquipment = null;
+  }
+
+  async saveStatusChange(): Promise<void> {
+    if (!this.selectedEquipment || this.savingEquipment) return;
+
+    this.savingEquipment = true;
+    try {
+      await this.firebaseService.updateEquipment(this.selectedEquipment.id, {
+        status: this.selectedEquipment.status,
+        responsable: this.selectedEquipment.responsable,
+      });
+      alert('Estado actualizado exitosamente');
+      this.closeStatusModal();
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+      alert('Error al actualizar el estado');
+    } finally {
+      this.savingEquipment = false;
+    }
+  }
+
   // ===== ACCIONES DE EQUIPO =====
   viewEquipment(equipment: Equipment): void {
-    // TODO: Abrir modal con detalles completos
-    alert(`Detalles de ${equipment.name}\nModelo: ${equipment.model}\nSerie: ${equipment.serialNumber}`);
+    const details = `
+      DETALLES DEL EQUIPO
+      
+      Código: ${equipment.codigo}
+      Año: ${equipment.anio}
+      Nombre: ${equipment.name}
+      Sucursal: ${equipment.sucursal}
+      Área: ${equipment.area}
+      N° Serie: ${equipment.serialNumber}
+      Marca: ${equipment.marca}
+      Modelo: ${equipment.model}
+      Estado: ${equipment.status}
+      Accesorios: ${equipment.accesorios || '-'}
+      Responsable: ${equipment.responsable || '-'}
+      Observaciones: ${equipment.observaciones || '-'}
+    `;
+    alert(details);
   }
 
   async editEquipment(equipment: Equipment): Promise<void> {
-    // TODO: Abrir modal para editar
     this.newEquipment = { ...equipment };
     this.showAddModal = true;
   }
@@ -463,28 +503,42 @@ export class InventarioComponent implements OnInit, OnDestroy {
     try {
       const escapeHtml = (text: string) => {
         return text.replace(/[&<>"']/g, (m) => {
-          const entities: any = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+          const entities: any = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+          };
           return entities[m];
         });
       };
 
       let html = '<table><thead><tr>';
-      html += '<th>Nombre</th><th>Modelo</th><th>Serie</th><th>Categoría</th><th>Estado</th><th>Asignado a</th>';
+      html += '<th>CODIGO</th><th>AÑO</th><th>NOMBRE</th><th>SUCURSAL</th><th>AREA</th>';
+      html += '<th>N° SERIE</th><th>MARCA</th><th>MODELO</th><th>STATUS</th>';
+      html += '<th>ACCESORIOS</th><th>RESPONSABLE</th><th>OBSERVACIONES</th>';
       html += '</tr></thead><tbody>';
-      
-      this.filteredEquipment.forEach(eq => {
+
+      this.filteredEquipment.forEach((eq) => {
         html += '<tr>';
+        html += `<td>${escapeHtml(eq.codigo)}</td>`;
+        html += `<td>${escapeHtml(eq.anio)}</td>`;
         html += `<td>${escapeHtml(eq.name)}</td>`;
-        html += `<td>${escapeHtml(eq.model)}</td>`;
+        html += `<td>${escapeHtml(eq.sucursal)}</td>`;
+        html += `<td>${escapeHtml(eq.area)}</td>`;
         html += `<td>${escapeHtml(eq.serialNumber)}</td>`;
-        html += `<td>${escapeHtml(eq.category)}</td>`;
+        html += `<td>${escapeHtml(eq.marca)}</td>`;
+        html += `<td>${escapeHtml(eq.model)}</td>`;
         html += `<td>${escapeHtml(eq.status)}</td>`;
-        html += `<td>${escapeHtml(eq.assignedTo || '-')}</td>`;
+        html += `<td>${escapeHtml(eq.accesorios || '-')}</td>`;
+        html += `<td>${escapeHtml(eq.responsable || '-')}</td>`;
+        html += `<td>${escapeHtml(eq.observaciones || '-')}</td>`;
         html += '</tr>';
       });
-      
+
       html += '</tbody></table>';
-      
+
       const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -502,7 +556,13 @@ export class InventarioComponent implements OnInit, OnDestroy {
     try {
       const escapeHtml = (text: string) => {
         return text.replace(/[&<>"']/g, (m) => {
-          const entities: any = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+          const entities: any = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+          };
           return entities[m];
         });
       };
@@ -511,11 +571,12 @@ export class InventarioComponent implements OnInit, OnDestroy {
         <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; }
-              h1 { color: #333; }
+              body { font-family: Arial, sans-serif; font-size: 10px; }
+              h1 { color: #333; font-size: 18px; }
               table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #6366f1; color: white; }
+              th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+              th { background-color: #6366f1; color: white; font-size: 9px; }
+              td { font-size: 9px; }
             </style>
           </head>
           <body>
@@ -524,37 +585,40 @@ export class InventarioComponent implements OnInit, OnDestroy {
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Modelo</th>
-                  <th>Serie</th>
-                  <th>Categoría</th>
-                  <th>Estado</th>
-                  <th>Asignado a</th>
+                  <th>CODIGO</th><th>AÑO</th><th>NOMBRE</th><th>SUCURSAL</th><th>AREA</th>
+                  <th>N° SERIE</th><th>MARCA</th><th>MODELO</th><th>STATUS</th>
+                  <th>ACCESORIOS</th><th>RESPONSABLE</th><th>OBSERVACIONES</th>
                 </tr>
               </thead>
               <tbody>
       `;
-      
-      this.filteredEquipment.forEach(eq => {
+
+      this.filteredEquipment.forEach((eq) => {
         html += `
           <tr>
+            <td>${escapeHtml(eq.codigo)}</td>
+            <td>${escapeHtml(eq.anio)}</td>
             <td>${escapeHtml(eq.name)}</td>
-            <td>${escapeHtml(eq.model)}</td>
+            <td>${escapeHtml(eq.sucursal)}</td>
+            <td>${escapeHtml(eq.area)}</td>
             <td>${escapeHtml(eq.serialNumber)}</td>
-            <td>${escapeHtml(eq.category)}</td>
+            <td>${escapeHtml(eq.marca)}</td>
+            <td>${escapeHtml(eq.model)}</td>
             <td>${escapeHtml(eq.status)}</td>
-            <td>${escapeHtml(eq.assignedTo || '-')}</td>
+            <td>${escapeHtml(eq.accesorios || '-')}</td>
+            <td>${escapeHtml(eq.responsable || '-')}</td>
+            <td>${escapeHtml(eq.observaciones || '-')}</td>
           </tr>
         `;
       });
-      
+
       html += `
               </tbody>
             </table>
           </body>
         </html>
       `;
-      
+
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(html);
@@ -563,7 +627,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
           printWindow.print();
         }, 250);
       } else {
-        alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
+        alert('No se pudo abrir la ventana de impresión.');
       }
     } catch (error) {
       console.error('Error exportando PDF:', error);
