@@ -553,3 +553,112 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL DE VISTA - SOLO LECTURA -->
+<div *ngIf="showViewModal" class="modal-overlay" (click)="closeViewModal()">
+  <div class="modal-content view-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-with-badge">
+        <h2>Información del Equipo</h2>
+        <span class="status-badge" [class]="'status-' + viewedEquipment?.status">
+          {{ viewedEquipment?.status }}
+        </span>
+      </div>
+      <button class="close-btn" (click)="closeViewModal()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Encabezado del equipo -->
+      <div class="view-header">
+        <div class="view-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div class="view-title-section">
+          <h3 class="view-title">{{ viewedEquipment?.name }}</h3>
+          <p class="view-subtitle">{{ viewedEquipment?.marca }} {{ viewedEquipment?.model }}</p>
+        </div>
+      </div>
+
+      <!-- Grid de información -->
+      <div class="view-grid">
+        <div class="view-item">
+          <span class="view-label">📋 Código</span>
+          <span class="view-value">{{ viewedEquipment?.codigo }}</span>
+        </div>
+
+        <div class="view-item">
+          <span class="view-label">📅 Año</span>
+          <span class="view-value">{{ viewedEquipment?.anio }}</span>
+        </div>
+
+        <div class="view-item">
+          <span class="view-label">🏢 Sucursal</span>
+          <span class="view-value">{{ viewedEquipment?.sucursal }}</span>
+        </div>
+
+        <div class="view-item">
+          <span class="view-label">📍 Área</span>
+          <span class="view-value">{{ viewedEquipment?.area }}</span>
+        </div>
+
+        <div class="view-item">
+          <span class="view-label">🔢 N° de Serie</span>
+          <span class="view-value">{{ viewedEquipment?.serialNumber }}</span>
+        </div>
+
+        <div class="view-item">
+          <span class="view-label">📦 Categoría</span>
+          <span class="view-value">{{ viewedEquipment?.category }}</span>
+        </div>
+
+        <div class="view-item full-width" *ngIf="viewedEquipment?.accesorios">
+          <span class="view-label">🔌 Accesorios</span>
+          <span class="view-value">{{ viewedEquipment?.accesorios }}</span>
+        </div>
+
+        <div class="view-item full-width" *ngIf="viewedEquipment?.responsable">
+          <span class="view-label">👤 Responsable</span>
+          <span class="view-value">{{ viewedEquipment?.responsable }}</span>
+        </div>
+
+        <div class="view-item full-width" *ngIf="viewedEquipment?.observaciones">
+          <span class="view-label">📝 Observaciones</span>
+          <span class="view-value">{{ viewedEquipment?.observaciones }}</span>
+        </div>
+
+        <div class="view-item" *ngIf="viewedEquipment?.purchaseDate">
+          <span class="view-label">🛒 Fecha de Compra</span>
+          <span class="view-value">{{ viewedEquipment?.purchaseDate }}</span>
+        </div>
+      </div>
+
+      <!-- Mensaje informativo -->
+      <div class="view-info-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>Este equipo ya está registrado en el sistema</span>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeViewModal()">
+        Cerrar
+      </button>
+      <button class="btn-primary" (click)="editFromView()">
+        Editar Equipo
+      </button>
+    </div>
+  </div>
+</div>
