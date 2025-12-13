@@ -800,3 +800,291 @@
     grid-template-columns: 1fr;
   }
 }
+/* Estilos adicionales para inventario.component.css */
+/* Agregar estos estilos a tu archivo CSS existente */
+
+/* Modal más grande para el formulario completo */
+.modal-large {
+  max-width: 900px !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Form textarea */
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: all 0.2s;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Form hints */
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Equipment badge (código) */
+.equipment-badge {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Equipment details section */
+.equipment-details {
+  margin: 1rem 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.detail-label {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Equipment year */
+.equipment-year {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* Alerts en modal de estado */
+.alert-info,
+.alert-success {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+}
+
+.alert-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.alert-success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.alert-info svg,
+.alert-success svg {
+  flex-shrink: 0;
+}
+
+/* Equipment info card en modal de estado */
+.equipment-info-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.equipment-icon-large {
+  width: 48px;
+  height: 48px;
+  background: #6366f1;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.info-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.equipment-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equipment-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-form {
+  background: white;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-large {
+    max-width: 95vw;
+    margin: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-details {
+    font-size: 0.8rem;
+  }
+}
+
+/* Mejora para el scanner */
+.scanner-modal {
+  max-width: 500px;
+}
+
+.scanner-container {
+  background: #000;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+#qr-reader {
+  width: 100%;
+  border: none;
+}
+
+.scanner-instructions {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.scanner-instructions small {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  border: 1px solid #fecaca;
+}
+
+/* Mejoras para tarjetas de equipo */
+.equipment-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.equipment-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para el estado del equipo */
+.status-disponible {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-asignado {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-mantenimiento {
+  background: #fed7aa;
+  color: #92400e;
+}

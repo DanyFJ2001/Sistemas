@@ -6,14 +6,23 @@ import { Observable, BehaviorSubject } from 'rxjs';
 
 export interface Equipment {
   id: string;
-  name: string;
-  model: string;
-  serialNumber: string;
-  status: 'disponible' | 'asignado' | 'mantenimiento';
-  assignedTo?: string;
-  purchaseDate?: string;
+  codigo: string;              // CODIGO (código de barras escaneado)
+  anio: string;                 // AÑO
+  name: string;                 // NOMBRE DEL EQUIPO
+  sucursal: string;             // SUCURSAL
+  area: string;                 // AREA
+  serialNumber: string;         // NUMERO DE SERIE
+  marca: string;                // MARCA
+  model: string;                // MODELO
+  status: 'disponible' | 'asignado' | 'mantenimiento';  // STATUS
+  accesorios: string;           // ACCESORIOS
+  responsable: string;          // RESPONSABLE (antes assignedTo)
+  observaciones: string;        // OBSERVACIONES
+  
+  // Campos adicionales del sistema
   category: string;
   qrCode?: string;
+  purchaseDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,10 +127,10 @@ export class FirebaseService {
     }
   }
 
-  // Buscar equipo por QR
-  findEquipmentByQR(qrCode: string): Equipment | undefined {
+  // Buscar equipo por código de barras
+  findEquipmentByCode(codigo: string): Equipment | undefined {
     const equipment = this.equipmentSubject.value;
-    return equipment.find(eq => eq.qrCode === qrCode || eq.serialNumber === qrCode);
+    return equipment.find(eq => eq.codigo === codigo || eq.qrCode === codigo);
   }
 
   // Buscar equipo por serie
