@@ -33,7 +33,7 @@
           <rect x="14" y="14" width="7" height="7"></rect>
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
-        <span class="btn-text">Escanear QR</span>
+        <span class="btn-text">Escanear Código</span>
       </button>
 
       <button class="btn-primary" (click)="openAddModal()">
@@ -55,7 +55,7 @@
       </svg>
       <input 
         type="text" 
-        placeholder="Buscar por nombre, modelo o serie..." 
+        placeholder="Buscar por código, nombre, serie, marca, responsable..." 
         class="search-input"
         [(ngModel)]="searchTerm"
         (input)="onSearch($event)">
@@ -88,7 +88,7 @@
       </button>
     </div>
 
-    <!-- NUEVO: Selector de Ordenamiento -->
+    <!-- Selector de Ordenamiento -->
     <div class="sort-selector">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 6h18"></path>
@@ -122,10 +122,10 @@
       </svg>
     </div>
     <h3>No hay equipos registrados</h3>
-    <p>Comienza agregando equipos con el botón "Agregar" o escanea un código QR</p>
+    <p>Comienza agregando equipos con el botón "Agregar" o escanea un código</p>
     <div class="empty-actions">
       <button class="btn-primary" (click)="openAddModal()">Agregar Equipo</button>
-      <button class="btn-secondary" (click)="openScanQR()">Escanear QR</button>
+      <button class="btn-secondary" (click)="openScanQR()">Escanear Código</button>
     </div>
   </div>
 
@@ -140,32 +140,33 @@
   <div *ngIf="!loading && filteredEquipment.length > 0" class="equipment-grid">
     <div *ngFor="let equipment of filteredEquipment" class="equipment-card">
       <div class="card-header">
-        <div class="equipment-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-        </div>
+        <div class="equipment-badge">{{ equipment.codigo }}</div>
         <span class="status-badge" [class]="'status-' + equipment.status">
           {{ equipment.status }}
         </span>
       </div>
 
       <h3 class="equipment-name">{{ equipment.name }}</h3>
-      <p class="equipment-model">{{ equipment.model }}</p>
+      <p class="equipment-model">{{ equipment.marca }} {{ equipment.model }}</p>
       <p class="equipment-serial">Serie: {{ equipment.serialNumber }}</p>
       
-      <div *ngIf="equipment.assignedTo" class="equipment-assigned">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        {{ equipment.assignedTo }}
+      <div class="equipment-details">
+        <div class="detail-item">
+          <span class="detail-label">📍</span>
+          <span class="detail-value">{{ equipment.sucursal }} - {{ equipment.area }}</span>
+        </div>
+        <div class="detail-item" *ngIf="equipment.responsable">
+          <span class="detail-label">👤</span>
+          <span class="detail-value">{{ equipment.responsable }}</span>
+        </div>
+        <div class="detail-item" *ngIf="equipment.accesorios">
+          <span class="detail-label">🔌</span>
+          <span class="detail-value">{{ equipment.accesorios }}</span>
+        </div>
       </div>
 
       <div class="equipment-footer">
-        <span class="equipment-category">{{ equipment.category }}</span>
+        <span class="equipment-year">Año: {{ equipment.anio }}</span>
         <div class="card-actions">
           <button class="btn-icon" (click)="viewEquipment(equipment)" title="Ver detalles">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -192,11 +193,11 @@
 
 </div>
 
-<!-- QR SCANNER MODAL -->
+<!-- QR/BARCODE SCANNER MODAL -->
 <div *ngIf="showQRScanner" class="modal-overlay" (click)="closeQRScanner()">
   <div class="modal-content scanner-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h2>Escanear Código QR</h2>
+      <h2>Escanear Código de Barras / QR</h2>
       <button class="close-btn" (click)="closeQRScanner()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -207,21 +208,19 @@
 
     <div class="modal-body">
       <div class="scanner-container">
-        <!-- Contenedor para el scanner de html5-qrcode -->
         <div #qrReader id="qr-reader"></div>
       </div>
 
       <p *ngIf="scannerError" class="error-message">{{ scannerError }}</p>
       
       <p class="scanner-instructions">
-        Coloca el código QR frente a la cámara
+        Coloca el código de barras o QR frente a la cámara
         <br>
-        <small>El escaneo es automático cuando detecta un QR</small>
+        <small>El escaneo es automático cuando detecta el código</small>
       </p>
       
-      <!-- Botón temporal para testing sin cámara -->
       <button class="btn-secondary" (click)="simulateQRScan()">
-        🎯 Simular escaneo (Para testing)
+        🧪 Simular escaneo (Testing)
       </button>
     </div>
   </div>
@@ -229,7 +228,7 @@
 
 <!-- ADD/EDIT EQUIPMENT MODAL -->
 <div *ngIf="showAddModal" class="modal-overlay" (click)="closeAddModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
+  <div class="modal-content modal-large" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h2>{{ newEquipment.id ? 'Editar Equipo' : 'Agregar Nuevo Equipo' }}</h2>
       <button class="close-btn" (click)="closeAddModal()">
@@ -242,6 +241,35 @@
 
     <div class="modal-body">
       <form class="equipment-form">
+        <!-- Fila 1: Código y Año -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="codigo">Código *</label>
+            <input 
+              type="text" 
+              id="codigo"
+              class="form-input"
+              [(ngModel)]="newEquipment.codigo"
+              name="codigo"
+              placeholder="Ej: EQ-2024-001"
+              required>
+            <small class="form-hint">Código único del equipo (puede ser escaneado)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="anio">Año *</label>
+            <input 
+              type="text" 
+              id="anio"
+              class="form-input"
+              [(ngModel)]="newEquipment.anio"
+              name="anio"
+              placeholder="2024"
+              required>
+          </div>
+        </div>
+
+        <!-- Fila 2: Nombre y Sucursal -->
         <div class="form-row">
           <div class="form-group">
             <label for="name">Nombre del Equipo *</label>
@@ -251,24 +279,37 @@
               class="form-input"
               [(ngModel)]="newEquipment.name"
               name="name"
-              placeholder="Ej: Laptop HP Usuario 1"
+              placeholder="Ej: Laptop HP Administración 1"
               required>
           </div>
 
           <div class="form-group">
-            <label for="model">Modelo *</label>
-            <input 
-              type="text" 
-              id="model"
-              class="form-input"
-              [(ngModel)]="newEquipment.model"
-              name="model"
-              placeholder="Ej: HP ProBook 450 G8"
+            <label for="sucursal">Sucursal *</label>
+            <select 
+              id="sucursal"
+              class="form-select"
+              [(ngModel)]="newEquipment.sucursal"
+              name="sucursal"
               required>
+              <option *ngFor="let suc of sucursales" [value]="suc">{{ suc }}</option>
+            </select>
           </div>
         </div>
 
+        <!-- Fila 3: Área y N° Serie -->
         <div class="form-row">
+          <div class="form-group">
+            <label for="area">Área *</label>
+            <select 
+              id="area"
+              class="form-select"
+              [(ngModel)]="newEquipment.area"
+              name="area"
+              required>
+              <option *ngFor="let ar of areas" [value]="ar">{{ ar }}</option>
+            </select>
+          </div>
+
           <div class="form-group">
             <label for="serialNumber">Número de Serie *</label>
             <input 
@@ -280,9 +321,53 @@
               placeholder="Ej: 5CD1234ABC"
               required>
           </div>
+        </div>
+
+        <!-- Fila 4: Marca y Modelo -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="marca">Marca *</label>
+            <input 
+              type="text" 
+              id="marca"
+              class="form-input"
+              [(ngModel)]="newEquipment.marca"
+              name="marca"
+              placeholder="Ej: HP, Dell, Lenovo"
+              required>
+          </div>
 
           <div class="form-group">
-            <label for="category">Categoría *</label>
+            <label for="model">Modelo *</label>
+            <input 
+              type="text" 
+              id="model"
+              class="form-input"
+              [(ngModel)]="newEquipment.model"
+              name="model"
+              placeholder="Ej: ProBook 450 G8"
+              required>
+          </div>
+        </div>
+
+        <!-- Fila 5: Estado y Categoría -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="status">Estado *</label>
+            <select 
+              id="status"
+              class="form-select"
+              [(ngModel)]="newEquipment.status"
+              name="status"
+              required>
+              <option value="disponible">Disponible</option>
+              <option value="asignado">Asignado</option>
+              <option value="mantenimiento">Mantenimiento</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Categoría</label>
             <select 
               id="category"
               class="form-select"
@@ -293,48 +378,177 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="status">Estado *</label>
-            <select 
-              id="status"
-              class="form-select"
-              [(ngModel)]="newEquipment.status"
-              name="status">
-              <option value="disponible">Disponible</option>
-              <option value="asignado">Asignado</option>
-              <option value="mantenimiento">Mantenimiento</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="purchaseDate">Fecha de Adquisición</label>
-            <input 
-              type="date" 
-              id="purchaseDate"
-              class="form-input"
-              [(ngModel)]="newEquipment.purchaseDate"
-              name="purchaseDate">
-          </div>
-        </div>
-
-        <div class="form-group" *ngIf="newEquipment.status === 'asignado'">
-          <label for="assignedTo">Asignado a</label>
+        <!-- Fila 6: Accesorios -->
+        <div class="form-group">
+          <label for="accesorios">Accesorios</label>
           <input 
             type="text" 
-            id="assignedTo"
+            id="accesorios"
             class="form-input"
-            [(ngModel)]="newEquipment.assignedTo"
-            name="assignedTo"
-            placeholder="Nombre del usuario">
+            [(ngModel)]="newEquipment.accesorios"
+            name="accesorios"
+            placeholder="Ej: Mouse, teclado, cargador, maletín">
+          <small class="form-hint">Lista de accesorios incluidos con el equipo</small>
+        </div>
+
+        <!-- Fila 7: Responsable (si está asignado) -->
+        <div class="form-group" *ngIf="newEquipment.status === 'asignado'">
+          <label for="responsable">Responsable *</label>
+          <input 
+            type="text" 
+            id="responsable"
+            class="form-input"
+            [(ngModel)]="newEquipment.responsable"
+            name="responsable"
+            placeholder="Nombre completo del responsable"
+            [required]="newEquipment.status === 'asignado'">
+          <small class="form-hint">Persona a quien se asigna el equipo</small>
+        </div>
+
+        <!-- Fila 8: Observaciones -->
+        <div class="form-group">
+          <label for="observaciones">Observaciones</label>
+          <textarea 
+            id="observaciones"
+            class="form-textarea"
+            [(ngModel)]="newEquipment.observaciones"
+            name="observaciones"
+            rows="3"
+            placeholder="Notas adicionales, daños, características especiales..."></textarea>
+        </div>
+
+        <!-- Fila 9: Fecha de Compra -->
+        <div class="form-group">
+          <label for="purchaseDate">Fecha de Adquisición</label>
+          <input 
+            type="date" 
+            id="purchaseDate"
+            class="form-input"
+            [(ngModel)]="newEquipment.purchaseDate"
+            name="purchaseDate">
         </div>
       </form>
     </div>
 
     <div class="modal-footer">
-      <button class="btn-secondary" (click)="closeAddModal()">Cancelar</button>
-      <button class="btn-primary" (click)="saveEquipment()">
-        {{ newEquipment.id ? 'Actualizar' : 'Guardar' }}
+      <button class="btn-secondary" (click)="closeAddModal()" [disabled]="savingEquipment">
+        Cancelar
+      </button>
+      <button class="btn-primary" (click)="saveEquipment()" [disabled]="savingEquipment">
+        <span *ngIf="!savingEquipment">
+          {{ newEquipment.id ? 'Actualizar' : 'Guardar' }}
+        </span>
+        <span *ngIf="savingEquipment">Guardando...</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS CHANGE MODAL -->
+<div *ngIf="showStatusModal" class="modal-overlay" (click)="closeStatusModal()">
+  <div class="modal-content status-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Cambiar Estado del Equipo</h2>
+      <button class="close-btn" (click)="closeStatusModal()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Información del equipo -->
+      <div class="equipment-info-card">
+        <div class="info-header">
+          <div class="equipment-icon-large">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div class="info-details">
+            <h3 class="equipment-title">{{ selectedEquipment?.name }}</h3>
+            <p class="equipment-subtitle">{{ selectedEquipment?.marca }} {{ selectedEquipment?.model }}</p>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Código</span>
+            <span class="info-value">{{ selectedEquipment?.codigo }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">N° Serie</span>
+            <span class="info-value">{{ selectedEquipment?.serialNumber }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Ubicación</span>
+            <span class="info-value">{{ selectedEquipment?.sucursal }} - {{ selectedEquipment?.area }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario de cambio de estado -->
+      <div class="status-form">
+        <div class="form-group">
+          <label for="statusChange">Estado del Equipo *</label>
+          <select 
+            id="statusChange" 
+            [(ngModel)]="selectedEquipment!.status" 
+            class="form-select"
+            name="statusChange"
+            required>
+            <option *ngFor="let opt of statusOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group" *ngIf="selectedEquipment?.status === 'asignado'">
+          <label for="responsableChange">Responsable *</label>
+          <input 
+            type="text" 
+            id="responsableChange"
+            [(ngModel)]="selectedEquipment!.responsable"
+            class="form-input"
+            name="responsableChange"
+            placeholder="Nombre completo del responsable"
+            [required]="selectedEquipment?.status === 'asignado'">
+        </div>
+
+        <div class="alert-info" *ngIf="selectedEquipment?.status === 'mantenimiento'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>El equipo quedará marcado como en mantenimiento</span>
+        </div>
+
+        <div class="alert-success" *ngIf="selectedEquipment?.status === 'disponible'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>El equipo quedará disponible para asignación</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button 
+        class="btn-secondary" 
+        (click)="closeStatusModal()"
+        [disabled]="savingEquipment">
+        Cancelar
+      </button>
+      <button 
+        class="btn-primary" 
+        (click)="saveStatusChange()"
+        [disabled]="savingEquipment || (selectedEquipment?.status === 'asignado' && !selectedEquipment?.responsable)">
+        <span *ngIf="!savingEquipment">Actualizar Estado</span>
+        <span *ngIf="savingEquipment">Guardando...</span>
       </button>
     </div>
   </div>
