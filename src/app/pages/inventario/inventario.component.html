@@ -56,6 +56,7 @@
       <input 
         type="text" 
         placeholder="Buscar por código, nombre, serie, marca, responsable..." 
+        placeholder="Buscar por código, nombre, serie, marca, responsable..." 
         class="search-input"
         [(ngModel)]="searchTerm"
         (input)="onSearch($event)">
@@ -88,6 +89,7 @@
       </button>
     </div>
 
+    <!-- Selector de Ordenamiento -->
     <!-- Selector de Ordenamiento -->
     <div class="sort-selector">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -123,8 +125,10 @@
     </div>
     <h3>No hay equipos registrados</h3>
     <p>Comienza agregando equipos con el botón "Agregar" o escanea un código</p>
+    <p>Comienza agregando equipos con el botón "Agregar" o escanea un código</p>
     <div class="empty-actions">
       <button class="btn-primary" (click)="openAddModal()">Agregar Equipo</button>
+      <button class="btn-secondary" (click)="openScanQR()">Escanear Código</button>
       <button class="btn-secondary" (click)="openScanQR()">Escanear Código</button>
     </div>
   </div>
@@ -256,9 +260,11 @@
 </div>
 
 <!-- QR/BARCODE SCANNER MODAL -->
+<!-- QR/BARCODE SCANNER MODAL -->
 <div *ngIf="showQRScanner" class="modal-overlay" (click)="closeQRScanner()">
   <div class="modal-content scanner-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
+      <h2>Escanear Código de Barras / QR</h2>
       <h2>Escanear Código de Barras / QR</h2>
       <button class="close-btn" (click)="closeQRScanner()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -277,11 +283,14 @@
       
       <p class="scanner-instructions">
         Coloca el código de barras o QR frente a la cámara
+        Coloca el código de barras o QR frente a la cámara
         <br>
+        <small>El escaneo es automático cuando detecta el código</small>
         <small>El escaneo es automático cuando detecta el código</small>
       </p>
       
       <button class="btn-secondary" (click)="simulateQRScan()">
+        🧪 Simular escaneo (Testing)
         🧪 Simular escaneo (Testing)
       </button>
     </div>
@@ -290,6 +299,7 @@
 
 <!-- ADD/EDIT EQUIPMENT MODAL -->
 <div *ngIf="showAddModal" class="modal-overlay" (click)="closeAddModal()">
+  <div class="modal-content modal-large" (click)="$event.stopPropagation()">
   <div class="modal-content modal-large" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h2>{{ newEquipment.id ? 'Editar Equipo' : 'Agregar Nuevo Equipo' }}</h2>

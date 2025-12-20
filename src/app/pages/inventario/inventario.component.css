@@ -1187,3 +1187,215 @@
     display: inline;
   }
 }
+/* ================================================================ */
+/* MODAL DE VISTA - SOLO LECTURA (Agregar al final del CSS)        */
+/* ================================================================ */
+
+/* Modal de vista */
+.view-modal {
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Header con badge */
+.header-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.header-with-badge h2 {
+  margin: 0;
+}
+
+/* Encabezado del equipo */
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+  color: white;
+}
+
+.view-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(10px);
+}
+
+.view-icon svg {
+  color: white;
+}
+
+.view-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.view-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.view-subtitle {
+  font-size: 1rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+/* Grid de información */
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.view-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+}
+
+.view-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.view-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.view-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  word-wrap: break-word;
+  line-height: 1.5;
+}
+
+/* Info box */
+.view-info-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 0.75rem;
+  color: #1e40af;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.view-info-box svg {
+  flex-shrink: 0;
+}
+
+/* Status badge en header */
+.header-with-badge .status-badge {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Animación de entrada */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-modal {
+  animation: slideInUp 0.3s ease-out;
+}
+
+/* Scroll suave */
+.view-modal {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.view-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.view-modal::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 10px;
+}
+
+.view-modal::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 10px;
+}
+
+.view-modal::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .view-modal {
+    max-width: 95vw;
+    margin: 1rem;
+  }
+
+  .view-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .view-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .view-title {
+    font-size: 1.25rem;
+  }
+
+  .view-subtitle {
+    font-size: 0.875rem;
+  }
+}
