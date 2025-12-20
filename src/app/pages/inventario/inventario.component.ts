@@ -862,4 +862,5 @@ export class InventarioComponent implements OnInit, OnDestroy {
       alert('Error al generar el PDF');
     }
   }
+  //hola
 }
