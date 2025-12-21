@@ -134,6 +134,16 @@ export class InventarioComponent implements OnInit, OnDestroy {
     return code ? code.toLowerCase() : 'default';
   }
 
+  getCategoryColor(category: string): string {
+    const code = this.categoryCodeMap[category];
+    switch (code) {
+      case 'EC': return '#1e40af'; // Azul para Equipos de Cómputo
+      case 'EM': return '#065f46'; // Verde para Equipos Médicos
+      case 'ME': return '#92400e'; // Naranja para Muebles y Enseres
+      default: return '#475569';
+    }
+  }
+
   private updateNameSuggestions(): void {
     const nameCountMap = new Map<string, number>();
     this.equipmentList.forEach(eq => {
