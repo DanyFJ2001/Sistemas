@@ -144,6 +144,10 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
+  getCategoryCode(category: string): string {
+    return this.categoryCodeMap[category] || 'XX';
+  }
+
   private updateNameSuggestions(): void {
     const nameCountMap = new Map<string, number>();
     this.equipmentList.forEach(eq => {
