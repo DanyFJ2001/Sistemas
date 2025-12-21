@@ -1,13 +1,5 @@
 // src/app/pages/inventario/inventario.component.ts
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  ViewChild,
-  ElementRef,
-  NgZone,
-  ChangeDetectorRef,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -43,8 +35,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
   sortOptions = [
     { value: 'name-asc', label: 'Nombre (A-Z)' },
     { value: 'name-desc', label: 'Nombre (Z-A)' },
-    { value: 'serial-asc', label: 'N° Serie (A-Z)' },
-    { value: 'serial-desc', label: 'N° Serie (Z-A)' },
     { value: 'codigo-asc', label: 'Código (A-Z)' },
     { value: 'codigo-desc', label: 'Código (Z-A)' },
     { value: 'sucursal-asc', label: 'Sucursal (A-Z)' },
@@ -55,9 +45,14 @@ export class InventarioComponent implements OnInit, OnDestroy {
   showQRScanner = false;
   scannerError = '';
   showAddModal = false;
-  newEquipment: Partial<Equipment> = this.getEmptyEquipment();
+  showViewModal = false;
+  viewedEquipment: Equipment | null = null;
+  newEquipment: Partial<Equipment> = {};
+  
+  // Switch para regenerar código
   allowCodeRegeneration = false;
 
+  // Autocompletado
   showNameSuggestions = false;
   filteredNameSuggestions: NameSuggestion[] = [];
   allNameSuggestions: NameSuggestion[] = [];
@@ -91,20 +86,15 @@ export class InventarioComponent implements OnInit, OnDestroy {
   areas = ['Administración', 'Sistemas', 'Recursos Humanos', 'Contabilidad', 'Gestion de la Calidad',
     'Comercial', 'Operaciones', 'Laboratorio', 'Salud Ocupacional', 'Recepción', 'Gerencia Comercial'];
 
-  showStatusModal = false;
-  selectedEquipment: Equipment | null = null;
-  statusOptions = [
-    { value: 'disponible', label: 'Disponible' },
-    { value: 'asignado', label: 'Asignado' },
-    { value: 'mantenimiento', label: 'Mantenimiento' },
-  ];
+  constructor(
+    private firebaseService: FirebaseService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
+  ) {}
 
-  showViewModal = false;
-  viewedEquipment: Equipment | null = null;
-
-  constructor(private firebaseService: FirebaseService, private ngZone: NgZone, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void { this.loadEquipment(); }
+  ngOnInit(): void {
+    this.loadEquipment();
+  }
 
   ngOnDestroy(): void {
     if (this.startQRScannerTimeout) clearTimeout(this.startQRScannerTimeout);
@@ -115,12 +105,26 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   private getEmptyEquipment(): Partial<Equipment> {
     return {
-      codigo: '', anio: new Date().getFullYear().toString(), name: '', sucursal: 'JIPIJAPA',
-      area: 'Administración', serialNumber: '', marca: '', model: '', status: 'disponible',
-      accesorios: '', responsable: '', observaciones: '', category: 'EQUIPOS DE COMPUTO Y ELECTRONICOS', purchaseDate: '',
+      codigo: '',
+      qrCode: '',
+      anio: new Date().getFullYear().toString(),
+      name: '',
+      sucursal: 'JIPIJAPA',
+      area: 'Administración',
+      serialNumber: '',
+      marca: '',
+      model: '',
+      status: 'disponible',
+      accesorios: '',
+      responsable: '',
+      observaciones: '',
+      category: 'EQUIPOS DE COMPUTO Y ELECTRONICOS',
+      purchaseDate: '',
     };
   }
 
+  // ========== FUNCIONES DE VISTA ==========
+  
   getSucursalInitials(sucursal: string): string {
     return this.sucursalCodeMap[sucursal] || sucursal.substring(0, 2).toUpperCase();
   }
@@ -134,24 +138,26 @@ export class InventarioComponent implements OnInit, OnDestroy {
     return code ? code.toLowerCase() : 'default';
   }
 
-  getCategoryColor(category: string): string {
-    const code = this.categoryCodeMap[category];
-    switch (code) {
-      case 'EC': return '#1e40af'; // Azul para Equipos de Cómputo
-      case 'EM': return '#065f46'; // Verde para Equipos Médicos
-      case 'ME': return '#92400e'; // Naranja para Muebles y Enseres
-      default: return '#475569';
-    }
-  }
-
   getCategoryCode(category: string): string {
     return this.categoryCodeMap[category] || 'XX';
   }
 
+  getCategoryColor(category: string): string {
+    const code = this.categoryCodeMap[category];
+    switch (code) {
+      case 'EC': return '#1e40af';
+      case 'EM': return '#065f46';
+      case 'ME': return '#92400e';
+      default: return '#475569';
+    }
+  }
+
+  // ========== AUTOCOMPLETADO DE NOMBRES ==========
+
   private updateNameSuggestions(): void {
     const nameCountMap = new Map<string, number>();
     this.equipmentList.forEach(eq => {
-      const name = eq.name.trim().toUpperCase();
+      const name = eq.name?.trim().toUpperCase();
       if (name) nameCountMap.set(name, (nameCountMap.get(name) || 0) + 1);
     });
     this.allNameSuggestions = Array.from(nameCountMap.entries())
@@ -225,28 +231,39 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.generateEquipmentCode();
   }
 
-  onFieldChange(): void { this.generateEquipmentCode(); }
+  // ========== GENERACIÓN DE CÓDIGO ==========
 
-  onCodeRegenerationToggle(): void {
-    if (this.allowCodeRegeneration) this.generateEquipmentCode();
+  onFieldChange(): void {
+    this.generateEquipmentCode();
+  }
+
+  toggleCodeRegeneration(): void {
+    if (this.allowCodeRegeneration) {
+      this.generateEquipmentCode();
+    }
   }
 
   private generateEquipmentCode(): void {
     if (this.newEquipment.id && !this.allowCodeRegeneration) return;
+
     const category = this.newEquipment.category;
     const sucursal = this.newEquipment.sucursal;
     const name = this.newEquipment.name?.trim();
+
     if (!category || !sucursal || !name || name.length < 3) {
       if (!this.newEquipment.id) this.newEquipment.codigo = '';
       return;
     }
+
     const categoryCode = this.categoryCodeMap[category] || 'XX';
     const sucursalCode = this.sucursalCodeMap[sucursal] || 'XX';
     const nameLettersOnly = name.replace(/[^A-Z]/g, '');
+    
     if (nameLettersOnly.length < 3) {
       if (!this.newEquipment.id) this.newEquipment.codigo = '';
       return;
     }
+    
     const nameCode = nameLettersOnly.substring(0, 3);
     const prefix = `AF.${categoryCode}.${sucursalCode}.${nameCode}`;
     const sequentialNumber = this.getNextSequentialNumber(prefix);
@@ -255,7 +272,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   private getNextSequentialNumber(prefix: string): string {
     const currentId = this.newEquipment.id;
-    const similarEquipment = this.equipmentList.filter(eq => 
+    const similarEquipment = this.equipmentList.filter(eq =>
       eq.codigo && eq.codigo.startsWith(prefix + '.') && eq.id !== currentId
     );
     if (similarEquipment.length === 0) return '001';
@@ -265,6 +282,8 @@ export class InventarioComponent implements OnInit, OnDestroy {
     });
     return (Math.max(...numbers) + 1).toString().padStart(3, '0');
   }
+
+  // ========== CARGA Y FILTRADO ==========
 
   loadEquipment(): void {
     this.loading = true;
@@ -298,115 +317,88 @@ export class InventarioComponent implements OnInit, OnDestroy {
     let filtered = [...this.equipmentList];
     if (this.searchTerm) {
       filtered = filtered.filter(eq =>
-        eq.name.toLowerCase().includes(this.searchTerm) ||
-        eq.model.toLowerCase().includes(this.searchTerm) ||
-        eq.serialNumber.toLowerCase().includes(this.searchTerm) ||
-        eq.codigo.toLowerCase().includes(this.searchTerm) ||
-        eq.marca.toLowerCase().includes(this.searchTerm) ||
+        eq.name?.toLowerCase().includes(this.searchTerm) ||
+        eq.model?.toLowerCase().includes(this.searchTerm) ||
+        eq.serialNumber?.toLowerCase().includes(this.searchTerm) ||
+        eq.codigo?.toLowerCase().includes(this.searchTerm) ||
+        eq.marca?.toLowerCase().includes(this.searchTerm) ||
         eq.responsable?.toLowerCase().includes(this.searchTerm) ||
-        eq.area.toLowerCase().includes(this.searchTerm) ||
-        eq.sucursal.toLowerCase().includes(this.searchTerm)
+        eq.area?.toLowerCase().includes(this.searchTerm) ||
+        eq.sucursal?.toLowerCase().includes(this.searchTerm)
       );
     }
-    if (this.selectedFilter !== 'todos') filtered = filtered.filter(eq => eq.status === this.selectedFilter);
+    if (this.selectedFilter !== 'todos') {
+      filtered = filtered.filter(eq => eq.status === this.selectedFilter);
+    }
     this.filteredEquipment = this.sortEquipment(filtered);
   }
 
   private sortEquipment(equipment: Equipment[]): Equipment[] {
     const sorted = [...equipment];
     switch (this.selectedSort) {
-      case 'name-asc': return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      case 'name-desc': return sorted.sort((a, b) => b.name.localeCompare(a.name));
-      case 'serial-asc': return sorted.sort((a, b) => a.serialNumber.localeCompare(b.serialNumber));
-      case 'serial-desc': return sorted.sort((a, b) => b.serialNumber.localeCompare(a.serialNumber));
-      case 'codigo-asc': return sorted.sort((a, b) => a.codigo.localeCompare(b.codigo));
-      case 'codigo-desc': return sorted.sort((a, b) => b.codigo.localeCompare(a.codigo));
-      case 'sucursal-asc': return sorted.sort((a, b) => a.sucursal.localeCompare(b.sucursal));
-      case 'date-newest': return sorted.sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
-      case 'date-oldest': return sorted.sort((a, b) => (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0));
+      case 'name-asc': return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      case 'name-desc': return sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+      case 'codigo-asc': return sorted.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+      case 'codigo-desc': return sorted.sort((a, b) => (b.codigo || '').localeCompare(a.codigo || ''));
+      case 'sucursal-asc': return sorted.sort((a, b) => (a.sucursal || '').localeCompare(b.sucursal || ''));
+      case 'date-newest': return sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      case 'date-oldest': return sorted.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
       default: return sorted;
     }
   }
+
+  // ========== QR SCANNER ==========
 
   async openScanQR(): Promise<void> {
     this.showQRScanner = true;
     this.scannerError = '';
     this.isScanning = false;
     this.cdr.detectChanges();
-    
     this.startQRScannerTimeout = setTimeout(() => this.startQRScanner(), 300);
   }
 
   private async startQRScanner(): Promise<void> {
     try {
-      if (!this.qrReader?.nativeElement) {
-        throw new Error('Elemento QR reader no disponible');
-      }
-
+      if (!this.qrReader?.nativeElement) throw new Error('Elemento QR reader no disponible');
       this.html5QrCode = new Html5Qrcode('qr-reader');
-      
       const devices = await Html5Qrcode.getCameras();
-      if (!devices || devices.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles');
-      }
-
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      };
-
+      if (!devices || devices.length === 0) throw new Error('No se encontraron cámaras');
+      
       await this.html5QrCode.start(
         { facingMode: 'environment' },
-        config,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-          // Solo procesar si no estamos ya escaneando
           if (!this.isScanning) {
             this.isScanning = true;
-            console.log('✅ Código detectado:', decodedText);
-            this.ngZone.run(() => {
-              this.processScannedCode(decodedText);
-            });
+            console.log('Código detectado:', decodedText);
+            this.ngZone.run(() => this.processScannedCode(decodedText));
           }
         },
-        () => {} // Ignorar errores de frame
+        () => {}
       );
-      
-      console.log('📷 Scanner iniciado correctamente');
     } catch (error: any) {
-      console.error('❌ Error al iniciar scanner:', error);
       this.ngZone.run(() => {
-        this.scannerError = error?.message || 'No se pudo acceder a la cámara.';
+        this.scannerError = error?.message || 'Error de cámara';
       });
     }
   }
 
   private processScannedCode(code: string): void {
-    console.log('🔍 Procesando código:', code);
-    console.log('📋 Equipos en lista:', this.equipmentList.length);
-    
-    // Primero cerrar el scanner
     this.stopQRScanner();
     this.showQRScanner = false;
-    
-    // Buscar el equipo
-    const existing = this.equipmentList.find(eq => {
-      const matchCodigo = eq.codigo === code;
-      const matchQR = eq.qrCode === code;
-      const matchSerial = eq.serialNumber === code;
-      console.log(`  - ${eq.name}: codigo=${matchCodigo}, qrCode=${matchQR}, serial=${matchSerial}`);
-      return matchCodigo || matchQR || matchSerial;
-    });
 
-    // Pequeño delay para asegurar que el scanner se cerró
+    const existing = this.equipmentList.find(eq =>
+      eq.codigo === code || eq.qrCode === code || eq.serialNumber === code
+    );
+
     setTimeout(() => {
       this.ngZone.run(() => {
         if (existing) {
-          console.log('✅ Equipo encontrado:', existing.name);
+          console.log('Equipo encontrado:', existing.name);
           this.viewedEquipment = existing;
           this.showViewModal = true;
         } else {
-          console.log('➕ Equipo no encontrado, abriendo formulario para crear nuevo');
+          console.log('Equipo no encontrado, creando nuevo');
           this.newEquipment = this.getEmptyEquipment();
           this.newEquipment.qrCode = code;
           this.allowCodeRegeneration = false;
@@ -418,13 +410,9 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }, 200);
   }
 
-  onCodeScanned(code: string): void {
-    this.processScannedCode(code);
-  }
-
   simulateQRScan(): void {
     const testCode = 'TEST-' + Date.now().toString().slice(-6);
-    console.log('🧪 Simulando escaneo con código:', testCode);
+    console.log('Simulando escaneo:', testCode);
     this.processScannedCode(testCode);
   }
 
@@ -432,32 +420,25 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.showQRScanner = false;
     this.isScanning = false;
     this.stopQRScanner();
-    this.cdr.detectChanges();
   }
 
   private stopQRScanner(): void {
     if (this.html5QrCode) {
-      this.html5QrCode.stop()
-        .then(() => {
-          console.log('📷 Scanner detenido');
-          this.html5QrCode?.clear();
-          this.html5QrCode = null;
-        })
-        .catch((err) => {
-          console.log('⚠️ Error al detener scanner:', err);
-          this.html5QrCode = null;
-        })
-        .finally(() => {
-          this.isScanning = false;
-        });
+      this.html5QrCode.stop().then(() => {
+        this.html5QrCode?.clear();
+        this.html5QrCode = null;
+      }).catch(() => {
+        this.html5QrCode = null;
+      });
     }
   }
+
+  // ========== MODALES ==========
 
   openAddModal(): void {
     this.newEquipment = this.getEmptyEquipment();
     this.allowCodeRegeneration = false;
     this.showNameSuggestions = false;
-    this.selectedSuggestionIndex = -1;
     this.showAddModal = true;
   }
 
@@ -468,44 +449,10 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.allowCodeRegeneration = false;
   }
 
-  async saveEquipment(): Promise<void> {
-    if (this.savingEquipment) return;
-    if (!this.newEquipment.codigo || !this.newEquipment.name || !this.newEquipment.serialNumber || !this.newEquipment.marca || !this.newEquipment.model) {
-      alert('Completa todos los campos obligatorios (*).');
-      return;
-    }
-    if (!/^[A-Z0-9\s]+$/.test(this.newEquipment.name)) {
-      alert('El nombre solo debe contener MAYÚSCULAS y NÚMEROS');
-      return;
-    }
-    if (!this.newEquipment.id || this.allowCodeRegeneration) {
-      if (this.equipmentList.find(eq => eq.codigo === this.newEquipment.codigo && eq.id !== this.newEquipment.id)) {
-        alert('Ya existe un equipo con ese código.');
-        this.generateEquipmentCode();
-        return;
-      }
-    }
-    if (this.equipmentList.find(eq => eq.serialNumber === this.newEquipment.serialNumber && eq.id !== this.newEquipment.id)) {
-      alert('Ya existe un equipo con ese número de serie');
-      return;
-    }
-    this.savingEquipment = true;
-    try {
-      if (this.newEquipment.id) {
-        await this.firebaseService.updateEquipment(this.newEquipment.id, this.newEquipment as any);
-        alert('Equipo actualizado');
-      } else {
-        await this.firebaseService.addEquipment(this.newEquipment as any);
-        alert('Equipo agregado');
-      }
-      this.closeAddModal();
-    } catch { alert('Error al guardar'); }
-    finally { this.savingEquipment = false; }
+  closeViewModal(): void {
+    this.showViewModal = false;
+    this.viewedEquipment = null;
   }
-
-  closeStatusModal(): void { this.showStatusModal = false; this.selectedEquipment = null; }
-
-  closeViewModal(): void { this.showViewModal = false; this.viewedEquipment = null; }
 
   editFromView(): void {
     if (this.viewedEquipment) {
@@ -516,9 +463,12 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
-  viewEquipment(equipment: Equipment): void { this.viewedEquipment = equipment; this.showViewModal = true; }
+  viewEquipment(equipment: Equipment): void {
+    this.viewedEquipment = equipment;
+    this.showViewModal = true;
+  }
 
-  async editEquipment(equipment: Equipment): Promise<void> {
+  editEquipment(equipment: Equipment): void {
     this.newEquipment = { ...equipment };
     this.allowCodeRegeneration = false;
     this.showAddModal = true;
@@ -526,18 +476,72 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   async deleteEquipment(equipment: Equipment): Promise<void> {
     if (confirm(`¿Eliminar ${equipment.name}?`)) {
-      try { await this.firebaseService.deleteEquipment(equipment.id); alert('Eliminado'); }
-      catch { alert('Error al eliminar'); }
+      try {
+        await this.firebaseService.deleteEquipment(equipment.id);
+        alert('Equipo eliminado');
+      } catch {
+        alert('Error al eliminar');
+      }
     }
   }
 
+  async saveEquipment(): Promise<void> {
+    if (this.savingEquipment) return;
+
+    if (!this.newEquipment.codigo || !this.newEquipment.name || !this.newEquipment.serialNumber ||
+        !this.newEquipment.marca || !this.newEquipment.model) {
+      alert('Completa todos los campos obligatorios (*)');
+      return;
+    }
+
+    if (!/^[A-Z0-9\s]+$/.test(this.newEquipment.name)) {
+      alert('El nombre solo debe contener MAYÚSCULAS y NÚMEROS');
+      return;
+    }
+
+    const duplicateCode = this.equipmentList.find(eq =>
+      eq.codigo === this.newEquipment.codigo && eq.id !== this.newEquipment.id
+    );
+    if (duplicateCode && (!this.newEquipment.id || this.allowCodeRegeneration)) {
+      alert('Ya existe un equipo con ese código');
+      this.generateEquipmentCode();
+      return;
+    }
+
+    const duplicateSerial = this.equipmentList.find(eq =>
+      eq.serialNumber === this.newEquipment.serialNumber && eq.id !== this.newEquipment.id
+    );
+    if (duplicateSerial) {
+      alert('Ya existe un equipo con ese número de serie');
+      return;
+    }
+
+    this.savingEquipment = true;
+    try {
+      if (this.newEquipment.id) {
+        await this.firebaseService.updateEquipment(this.newEquipment.id, this.newEquipment as any);
+        alert('Equipo actualizado');
+      } else {
+        await this.firebaseService.addEquipment(this.newEquipment as any);
+        alert('Equipo agregado');
+      }
+      this.closeAddModal();
+    } catch {
+      alert('Error al guardar');
+    } finally {
+      this.savingEquipment = false;
+    }
+  }
+
+  // ========== EXPORTACIÓN ==========
+
   exportToExcel(): void {
-    const esc = (t: string) => t.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m));
-    let html = '<table><thead><tr><th>CODIGO</th><th>AÑO</th><th>NOMBRE</th><th>SUCURSAL</th><th>AREA</th><th>N° SERIE</th><th>MARCA</th><th>MODELO</th><th>STATUS</th><th>ACCESORIOS</th><th>RESPONSABLE</th><th>OBSERVACIONES</th></tr></thead><tbody>';
+    const esc = (t: string) => (t || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m] || m));
+    let html = '<table><tr><th>CODIGO</th><th>AÑO</th><th>NOMBRE</th><th>SUCURSAL</th><th>AREA</th><th>N° SERIE</th><th>MARCA</th><th>MODELO</th><th>ESTADO</th><th>RESPONSABLE</th></tr>';
     this.filteredEquipment.forEach(eq => {
-      html += `<tr><td>${esc(eq.codigo)}</td><td>${esc(eq.anio)}</td><td>${esc(eq.name)}</td><td>${esc(eq.sucursal)}</td><td>${esc(eq.area)}</td><td>${esc(eq.serialNumber)}</td><td>${esc(eq.marca)}</td><td>${esc(eq.model)}</td><td>${esc(eq.status)}</td><td>${esc(eq.accesorios || '-')}</td><td>${esc(eq.responsable || '-')}</td><td>${esc(eq.observaciones || '-')}</td></tr>`;
+      html += `<tr><td>${esc(eq.codigo)}</td><td>${esc(eq.anio)}</td><td>${esc(eq.name)}</td><td>${esc(eq.sucursal)}</td><td>${esc(eq.area)}</td><td>${esc(eq.serialNumber)}</td><td>${esc(eq.marca)}</td><td>${esc(eq.model)}</td><td>${esc(eq.status)}</td><td>${esc(eq.responsable || '')}</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</table>';
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -546,13 +550,13 @@ export class InventarioComponent implements OnInit, OnDestroy {
   }
 
   exportToPDF(): void {
-    const esc = (t: string) => t.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m));
-    let html = `<html><head><style>body{font-family:Arial;font-size:10px}h1{color:#333;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#6366f1;color:white;font-size:9px}td{font-size:9px}</style></head><body><h1>Inventario</h1><p>Fecha: ${new Date().toLocaleDateString()}</p><table><thead><tr><th>CODIGO</th><th>AÑO</th><th>NOMBRE</th><th>SUCURSAL</th><th>AREA</th><th>N° SERIE</th><th>MARCA</th><th>MODELO</th><th>STATUS</th><th>ACCESORIOS</th><th>RESPONSABLE</th><th>OBS</th></tr></thead><tbody>`;
+    const esc = (t: string) => (t || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m] || m));
+    let html = `<html><head><style>body{font-family:Arial,sans-serif;font-size:10px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:5px;text-align:left}th{background:#6366f1;color:white}</style></head><body><h2>Inventario de Equipos</h2><p>Fecha: ${new Date().toLocaleDateString()}</p><table><tr><th>CÓDIGO</th><th>NOMBRE</th><th>SUCURSAL</th><th>ÁREA</th><th>SERIE</th><th>MARCA</th><th>MODELO</th><th>ESTADO</th></tr>`;
     this.filteredEquipment.forEach(eq => {
-      html += `<tr><td>${esc(eq.codigo)}</td><td>${esc(eq.anio)}</td><td>${esc(eq.name)}</td><td>${esc(eq.sucursal)}</td><td>${esc(eq.area)}</td><td>${esc(eq.serialNumber)}</td><td>${esc(eq.marca)}</td><td>${esc(eq.model)}</td><td>${esc(eq.status)}</td><td>${esc(eq.accesorios || '-')}</td><td>${esc(eq.responsable || '-')}</td><td>${esc(eq.observaciones || '-')}</td></tr>`;
+      html += `<tr><td>${esc(eq.codigo)}</td><td>${esc(eq.name)}</td><td>${esc(eq.sucursal)}</td><td>${esc(eq.area)}</td><td>${esc(eq.serialNumber)}</td><td>${esc(eq.marca)}</td><td>${esc(eq.model)}</td><td>${esc(eq.status)}</td></tr>`;
     });
-    html += '</tbody></table></body></html>';
+    html += '</table></body></html>';
     const w = window.open('', '_blank');
-    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 250); }
+    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300); }
   }
 }
