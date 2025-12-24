@@ -73,7 +73,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   private sucursalCodeMap: { [key: string]: string } = {
     'CALDERON': 'CA', 'CAMION': 'CM', 'CARAPUNGO': 'CP', 'COCA': 'CO', 'ECOGRAFIAS': 'EG',
-    'JIPIJAPA': 'JI', 'LABORATORIO': 'LA', 'MICHELENA': 'MI', 'NACIONES UNIDAS': 'NU',
+    'JIPIJAPA': 'JP', 'LABORATORIO': 'LA', 'MICHELENA': 'MI', 'NACIONES UNIDAS': 'NU',
     'PRADERAS': 'PR', 'LAGO AGRIO': 'LG'
   };
 
