@@ -433,7 +433,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ========== MODALES =====
+  // ========== MODALES ====
 
   openAddModal(): void {
     this.newEquipment = this.getEmptyEquipment();
