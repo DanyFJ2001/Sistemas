@@ -6,14 +6,22 @@ import { Observable, BehaviorSubject } from 'rxjs';
 
 export interface Equipment {
   id: string;
-  name: string;
-  model: string;
-  serialNumber: string;
+  codigo: string;           // Código generado automáticamente (AF.EC.MI.CPU.001)
+  qrCode?: string;          // Código escaneado del QR/código de barras
+  anio: string;             // Año del equipo
+  name: string;             // Nombre del equipo (CPU, MONITOR, etc.)
+  sucursal: string;         // Sucursal donde está el equipo
+  area: string;             // Área dentro de la sucursal
+  serialNumber: string;     // Número de serie del fabricante
+  marca: string;            // Marca del equipo
+  model: string;            // Modelo del equipo
   status: 'disponible' | 'asignado' | 'mantenimiento';
-  assignedTo?: string;
-  purchaseDate?: string;
-  category: string;
-  qrCode?: string;
+  category: string;         // Categoría (EQUIPOS DE COMPUTO, MEDICOS, MUEBLES)
+  accesorios?: string;      // Accesorios incluidos
+  responsable?: string;     // Persona responsable (si está asignado)
+  observaciones?: string;   // Notas adicionales
+  purchaseDate?: string;    // Fecha de compra
+  assignedTo?: string;      // Legacy - mantener compatibilidad
   createdAt: string;
   updatedAt: string;
 }
@@ -58,7 +66,25 @@ export class FirebaseService {
       if (data) {
         const equipmentArray: Equipment[] = Object.keys(data).map(key => ({
           id: key,
-          ...data[key]
+          // Valores por defecto para campos que pueden no existir en registros antiguos
+          codigo: data[key].codigo || '',
+          qrCode: data[key].qrCode || '',
+          anio: data[key].anio || new Date().getFullYear().toString(),
+          name: data[key].name || '',
+          sucursal: data[key].sucursal || 'JIPIJAPA',
+          area: data[key].area || 'Administración',
+          serialNumber: data[key].serialNumber || '',
+          marca: data[key].marca || '',
+          model: data[key].model || '',
+          status: data[key].status || 'disponible',
+          category: data[key].category || 'EQUIPOS DE COMPUTO Y ELECTRONICOS',
+          accesorios: data[key].accesorios || '',
+          responsable: data[key].responsable || '',
+          observaciones: data[key].observaciones || '',
+          purchaseDate: data[key].purchaseDate || '',
+          assignedTo: data[key].assignedTo || '',
+          createdAt: data[key].createdAt || new Date().toISOString(),
+          updatedAt: data[key].updatedAt || new Date().toISOString(),
         }));
         this.equipmentSubject.next(equipmentArray);
       } else {
@@ -118,10 +144,19 @@ export class FirebaseService {
     }
   }
 
-  // Buscar equipo por QR
-  findEquipmentByQR(qrCode: string): Equipment | undefined {
+  // Buscar equipo por código o QR
+  findEquipmentByCode(code: string): Equipment | undefined {
     const equipment = this.equipmentSubject.value;
-    return equipment.find(eq => eq.qrCode === qrCode || eq.serialNumber === qrCode);
+    return equipment.find(eq => 
+      eq.codigo === code || 
+      eq.qrCode === code || 
+      eq.serialNumber === code
+    );
+  }
+
+  // Buscar equipo por QR (mantener compatibilidad)
+  findEquipmentByQR(qrCode: string): Equipment | undefined {
+    return this.findEquipmentByCode(qrCode);
   }
 
   // Buscar equipo por serie

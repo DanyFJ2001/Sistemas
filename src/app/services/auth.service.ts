@@ -6,9 +6,12 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  User
+  User,
+  browserLocalPersistence,
+  setPersistence
 } from 'firebase/auth';
 import { Observable, BehaviorSubject } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -17,12 +20,16 @@ export class AuthService {
   private auth: any;
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
+  
+  // NUEVO: Estado de inicialización
+  private authInitializedSubject = new BehaviorSubject<boolean>(false);
+  public authInitialized$ = this.authInitializedSubject.asObservable();
 
   constructor() {
     this.initFirebaseAuth();
   }
 
-  private initFirebaseAuth(): void {
+  private async initFirebaseAuth(): Promise<void> {
     const firebaseConfig = {
       apiKey: "AIzaSyDzgcUjSj2i53ITnBAyGrBpLSLRxqBmiIE",
       authDomain: "prueba-bfc8a.firebaseapp.com",
@@ -37,14 +44,26 @@ export class AuthService {
     const app = initializeApp(firebaseConfig);
     this.auth = getAuth(app);
 
+    // Configurar persistencia local
+    try {
+      await setPersistence(this.auth, browserLocalPersistence);
+    } catch (error) {
+      console.error('Error configurando persistencia:', error);
+    }
+
     // Escuchar cambios en el estado de autenticación
     onAuthStateChanged(this.auth, (user) => {
       this.currentUserSubject.next(user);
       
+      // Marcar como inicializado después del primer check
+      if (!this.authInitializedSubject.value) {
+        this.authInitializedSubject.next(true);
+      }
+      
       if (user) {
-        console.log('Usuario autenticado:', user.email);
+        console.log('✅ Usuario autenticado:', user.email);
       } else {
-        console.log('Usuario no autenticado');
+        console.log('❌ Usuario no autenticado');
       }
     });
   }
@@ -81,6 +100,22 @@ export class AuthService {
     return this.currentUserSubject.value !== null;
   }
 
+  // NUEVO: Esperar a que Firebase termine de inicializar
+  waitForAuthInit(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (this.authInitializedSubject.value) {
+        resolve(this.isAuthenticated());
+      } else {
+        this.authInitialized$.pipe(
+          filter(initialized => initialized),
+          take(1)
+        ).subscribe(() => {
+          resolve(this.isAuthenticated());
+        });
+      }
+    });
+  }
+
   // Obtener email del usuario
   getUserEmail(): string | null {
     return this.currentUserSubject.value?.email || null;
@@ -89,7 +124,6 @@ export class AuthService {
   // Manejo de errores de Firebase Auth
   private handleAuthError(error: any): Error {
     let message = 'Error al iniciar sesión';
-
     switch (error.code) {
       case 'auth/invalid-email':
         message = 'El correo electrónico no es válido';
@@ -115,7 +149,6 @@ export class AuthService {
       default:
         message = error.message || 'Error al iniciar sesión';
     }
-
     return new Error(message);
   }
 }

@@ -15,18 +15,21 @@ import { Html5Qrcode } from 'html5-qrcode';
 })
 export class InventarioComponent implements OnInit, OnDestroy {
   @ViewChild('qrReader') qrReader!: ElementRef<HTMLDivElement>;
-  
+  private googleSheetUrl = 'https://script.google.com/macros/s/AKfycbxvae6Mq9jbMSqJ8qur4sfBesiuBtZjJ7c9RdxV7EUEowVQ86Wly0LqCdcB6rHCHkvM/exec';
   private destroy$ = new Subject<void>();
   private html5QrCode: Html5Qrcode | null = null;
   private isScanning = false;
   private startQRScannerTimeout?: any;
   
+  // URL de Google Sheets API
+
   loading = true;
   searchTerm = '';
   selectedFilter = 'todos';
   savingEquipment = false;
+  syncingSheet = false;
   
-  // NUEVO: Ordenamiento
+  // Ordenamiento
   selectedSort = 'name-asc';
   sortOptions = [
     { value: 'name-asc', label: 'Nombre (A-Z)' },
@@ -110,7 +113,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.filterEquipment();
   }
 
-  // NUEVO: Cambiar ordenamiento
   onSortChange(sortValue: string): void {
     this.selectedSort = sortValue;
     this.filterEquipment();
@@ -119,7 +121,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
   filterEquipment(): void {
     let filtered = [...this.equipmentList];
 
-    // Aplicar búsqueda
     if (this.searchTerm) {
       filtered = filtered.filter(eq => 
         eq.name.toLowerCase().includes(this.searchTerm) ||
@@ -129,54 +130,43 @@ export class InventarioComponent implements OnInit, OnDestroy {
       );
     }
 
-    // Aplicar filtro por estado
     if (this.selectedFilter !== 'todos') {
       filtered = filtered.filter(eq => eq.status === this.selectedFilter);
     }
 
-    // NUEVO: Aplicar ordenamiento
     filtered = this.sortEquipment(filtered);
 
     this.filteredEquipment = filtered;
   }
 
-  // NUEVO: Método de ordenamiento
   private sortEquipment(equipment: Equipment[]): Equipment[] {
     const sorted = [...equipment];
 
     switch (this.selectedSort) {
       case 'name-asc':
         return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      
       case 'name-desc':
         return sorted.sort((a, b) => b.name.localeCompare(a.name));
-      
       case 'serial-asc':
         return sorted.sort((a, b) => a.serialNumber.localeCompare(b.serialNumber));
-      
       case 'serial-desc':
         return sorted.sort((a, b) => b.serialNumber.localeCompare(a.serialNumber));
-      
       case 'category-asc':
         return sorted.sort((a, b) => a.category.localeCompare(b.category));
-      
       case 'category-desc':
         return sorted.sort((a, b) => b.category.localeCompare(a.category));
-      
       case 'date-newest':
         return sorted.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA; // Más recientes primero
+          return dateB - dateA;
         });
-      
       case 'date-oldest':
         return sorted.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateA - dateB; // Más antiguos primero
+          return dateA - dateB;
         });
-      
       default:
         return sorted;
     }
@@ -189,7 +179,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.scannerError = '';
     this.isScanning = false;
     
-    // Esperar a que el DOM se actualice
     this.startQRScannerTimeout = setTimeout(() => {
       this.startQRScanner();
     }, 200);
@@ -204,7 +193,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
       this.html5QrCode = new Html5Qrcode('qr-reader');
       this.isScanning = false;
       
-      // Verificar cámaras disponibles
       try {
         const devices = await Html5Qrcode.getCameras();
         if (!devices || devices.length === 0) {
@@ -224,7 +212,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
         { facingMode: 'environment' },
         config,
         (decodedText) => {
-          // Solo procesar si NO hay modal abierto
           if (!this.showAddModal && !this.isScanning) {
             this.isScanning = true;
             this.ngZone.run(() => {
@@ -232,59 +219,45 @@ export class InventarioComponent implements OnInit, OnDestroy {
             });
           }
         },
-        (errorMessage) => {
-          // Ignorar errores de búsqueda de QR
-        }
+        (errorMessage) => {}
       );
 
       console.log('✅ Scanner iniciado');
     } catch (error: any) {
       console.error('Error al iniciar scanner:', error);
       this.ngZone.run(() => {
-        this.scannerError = error?.message || 'No se pudo acceder a la cámara. Permite el acceso en tu navegador.';
+        this.scannerError = error?.message || 'No se pudo acceder a la cámara.';
         this.showQRScanner = false;
       });
     }
   }
 
   onQRCodeScanned(code: string): void {
-    console.log('=== onQRCodeScanned INICIO ===');
     console.log('🎯 Código recibido:', code);
     
-    // Detener el scanner inmediatamente
     this.stopQRScanner();
     
-    // Intentar parsear como JSON
     let parsedData: any = null;
     let serialNumber = code;
     
     try {
       parsedData = JSON.parse(code);
-      console.log('✅ QR parseado como JSON:', parsedData);
       serialNumber = parsedData.serialNumber || code;
     } catch (error) {
       console.log('ℹ️ QR no es JSON, usando como número de serie simple');
     }
     
-    // Buscar si el equipo ya existe
     const existing = this.firebaseService.findEquipmentBySerial(serialNumber);
     
     if (existing) {
-      console.log('⚠️ Equipo ya existe:', existing);
       alert(`Equipo ya registrado:\n${existing.name}\nModelo: ${existing.model}\nSerie: ${existing.serialNumber}`);
       this.closeQRScanner();
       return;
     }
     
-    console.log('✅ Equipo nuevo, preparando datos...');
-    
-    // Cerrar scanner primero
     this.closeQRScanner();
     
-    // Preparar datos del nuevo equipo
     if (parsedData && typeof parsedData === 'object') {
-      // QR con JSON completo
-      console.log('📦 Llenando con datos del JSON...');
       this.newEquipment = {
         name: parsedData.name || '',
         model: parsedData.model || '',
@@ -295,16 +268,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
         assignedTo: parsedData.assignedTo || '',
         purchaseDate: parsedData.purchaseDate || ''
       };
-      
-      console.log('Datos asignados:', {
-        name: this.newEquipment.name,
-        model: this.newEquipment.model,
-        serialNumber: this.newEquipment.serialNumber,
-        category: this.newEquipment.category
-      });
     } else {
-      // QR simple
-      console.log('📝 QR simple, solo número de serie');
       this.newEquipment = {
         name: '',
         model: '',
@@ -317,24 +281,16 @@ export class InventarioComponent implements OnInit, OnDestroy {
       };
     }
     
-    // Abrir modal con delay para asegurar que Angular detecte cambios
     setTimeout(() => {
       this.ngZone.run(() => {
         this.showAddModal = true;
         this.cdr.detectChanges();
-        console.log('✅ Modal abierto');
-        console.log('Valores actuales en newEquipment:', this.newEquipment);
       });
     }, 150);
-    
-    console.log('=== onQRCodeScanned FIN ===');
   }
 
-  // Método para testing sin cámara
   simulateQRScan(): void {
     const testCode = 'TEST-' + Date.now().toString().slice(-6);
-    console.log('🧪 Simulando QR:', testCode);
-    
     this.ngZone.run(() => {
       this.onQRCodeScanned(testCode);
     });
@@ -343,8 +299,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
   closeQRScanner(): void {
     this.showQRScanner = false;
     this.isScanning = false;
-    
-    // Detener el scanner con delay
     setTimeout(() => {
       this.stopQRScanner();
     }, 100);
@@ -358,7 +312,6 @@ export class InventarioComponent implements OnInit, OnDestroy {
           this.html5QrCode = null;
         })
         .catch((err) => {
-          console.error('Error deteniendo scanner:', err);
           this.html5QrCode = null;
         })
         .finally(() => {
@@ -394,16 +347,13 @@ export class InventarioComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Validar categoría
     if (!this.categories.includes(this.newEquipment.category!)) {
       alert('Categoría inválida');
       return;
     }
 
-    // Verificar si la serie ya existe (solo si NO estamos editando)
     const existing = this.firebaseService.findEquipmentBySerial(this.newEquipment.serialNumber!);
     
-    // Si existe un equipo con ese número de serie Y no es el mismo que estamos editando
     if (existing && existing.id !== this.newEquipment.id) {
       alert('Ya existe un equipo con ese número de serie');
       return;
@@ -412,14 +362,12 @@ export class InventarioComponent implements OnInit, OnDestroy {
     this.savingEquipment = true;
     try {
       if (this.newEquipment.id) {
-        // ACTUALIZAR equipo existente
         await this.firebaseService.updateEquipment(
           this.newEquipment.id, 
           this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
         );
         alert('Equipo actualizado exitosamente');
       } else {
-        // CREAR nuevo equipo
         await this.firebaseService.addEquipment(
           this.newEquipment as Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>
         );
@@ -436,12 +384,10 @@ export class InventarioComponent implements OnInit, OnDestroy {
 
   // ===== ACCIONES DE EQUIPO =====
   viewEquipment(equipment: Equipment): void {
-    // TODO: Abrir modal con detalles completos
     alert(`Detalles de ${equipment.name}\nModelo: ${equipment.model}\nSerie: ${equipment.serialNumber}`);
   }
 
   async editEquipment(equipment: Equipment): Promise<void> {
-    // TODO: Abrir modal para editar
     this.newEquipment = { ...equipment };
     this.showAddModal = true;
   }
@@ -456,6 +402,131 @@ export class InventarioComponent implements OnInit, OnDestroy {
         alert('Error al eliminar el equipo');
       }
     }
+  }
+
+  // ===== SYNC CON GOOGLE SHEETS =====
+  
+  // Enviar UN registro a Google Sheets
+  async syncToGoogleSheet(equipment?: Equipment): Promise<void> {
+    const eq = equipment || this.filteredEquipment[0];
+    
+    if (!eq) {
+      alert('No hay equipo para enviar');
+      return;
+    }
+
+    this.syncingSheet = true;
+
+    try {
+      const params = new URLSearchParams({
+        action: 'insert',
+        codigo: eq.id || '',
+        ano: new Date().getFullYear().toString(),
+        cod_definitivo: eq.serialNumber || '',
+        nombre_equipo: eq.name || '',
+        sucursal: '',
+        area_ubicacion: '',
+        serie_lote: eq.serialNumber || '',
+        marca: '',
+        modelo: eq.model || '',
+        status: eq.status || '',
+        accesorios: '',
+        responsable: eq.assignedTo || '',
+        fecha_elaboracion: new Date().toISOString().split('T')[0],
+        fecha_mantenimiento: '',
+        grupo: eq.category || '',
+        sub_grupo: '',
+        nombre_general: eq.name || '',
+        ciudad: '',
+        fecha_compra: eq.purchaseDate || '',
+        nro_factura: '',
+        costo: '',
+        proveedor: '',
+        empresa: 'SEGURILAB',
+        analisis: '',
+        periodo_contable: new Date().getFullYear().toString()
+      });
+
+      const response = await fetch(`${this.googleSheetUrl}?${params.toString()}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Equipo "${eq.name}" enviado a Google Sheets`);
+      } else {
+        alert('❌ Error: ' + (result.error || 'No se pudo enviar'));
+      }
+    } catch (error) {
+      console.error('Error enviando a Google Sheets:', error);
+      alert('❌ Error de conexión con Google Sheets');
+    } finally {
+      this.syncingSheet = false;
+    }
+  }
+
+  // Enviar TODOS los registros a Google Sheets
+  async syncAllToGoogleSheet(): Promise<void> {
+    if (this.filteredEquipment.length === 0) {
+      alert('No hay equipos para enviar');
+      return;
+    }
+
+    const confirmacion = confirm(`¿Enviar ${this.filteredEquipment.length} equipos a Google Sheets?`);
+    if (!confirmacion) return;
+
+    this.syncingSheet = true;
+    let enviados = 0;
+    let errores = 0;
+
+    for (const eq of this.filteredEquipment) {
+      try {
+        const params = new URLSearchParams({
+          action: 'insert',
+          codigo: eq.id || '',
+          ano: new Date().getFullYear().toString(),
+          cod_definitivo: eq.serialNumber || '',
+          nombre_equipo: eq.name || '',
+          sucursal: '',
+          area_ubicacion: '',
+          serie_lote: eq.serialNumber || '',
+          marca: '',
+          modelo: eq.model || '',
+          status: eq.status || '',
+          accesorios: '',
+          responsable: eq.assignedTo || '',
+          fecha_elaboracion: new Date().toISOString().split('T')[0],
+          fecha_mantenimiento: '',
+          grupo: eq.category || '',
+          sub_grupo: '',
+          nombre_general: eq.name || '',
+          ciudad: '',
+          fecha_compra: eq.purchaseDate || '',
+          nro_factura: '',
+          costo: '',
+          proveedor: '',
+          empresa: 'SEGURILAB',
+          analisis: '',
+          periodo_contable: new Date().getFullYear().toString()
+        });
+
+        const response = await fetch(`${this.googleSheetUrl}?${params.toString()}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          enviados++;
+        } else {
+          errores++;
+        }
+        
+        // Pausa para no saturar
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        errores++;
+      }
+    }
+
+    this.syncingSheet = false;
+    alert(`✅ Enviados: ${enviados}\n❌ Errores: ${errores}`);
   }
 
   // ===== EXPORTACIÓN =====
@@ -563,7 +634,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
           printWindow.print();
         }, 250);
       } else {
-        alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
+        alert('No se pudo abrir la ventana de impresión.');
       }
     } catch (error) {
       console.error('Error exportando PDF:', error);
