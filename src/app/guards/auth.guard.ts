@@ -12,11 +12,8 @@ export class AuthGuard {
     private router: Router
   ) {}
 
-  async canActivate(): Promise<boolean> {
-    // Esperar a que Firebase termine de inicializar
-    const isAuthenticated = await this.authService.waitForAuthInit();
-    
-    if (isAuthenticated) {
+  canActivate(): boolean {
+    if (this.authService.isAuthenticated()) {
       return true;
     } else {
       console.log('🚫 No autenticado - redirigiendo a login');
@@ -25,7 +22,7 @@ export class AuthGuard {
     }
   }
 
-  async canActivateChild(): Promise<boolean> {
+  canActivateChild(): boolean {
     return this.canActivate();
   }
 }

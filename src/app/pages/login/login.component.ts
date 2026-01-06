@@ -93,3 +93,31 @@ export class LoginComponent implements AfterViewInit {
     }
   }
 }
+
+//SECCION DE ROLES
+// src/app/models/user.model.ts
+
+export type UserRole = 'admin' | 'jefe_inventario' | 'observador';
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  role: UserRole;
+  sucursal?: string;
+  createdAt: string;
+  updatedAt?: string;
+  active: boolean;
+}
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  'admin': 'Administrador',
+  'jefe_inventario': 'Jefe de Inventario',
+  'observador': 'Observador'
+};
+
+export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  'admin': ['read', 'write', 'delete', 'manage_users', 'reports', 'settings'],
+  'jefe_inventario': ['read', 'write', 'delete', 'reports'],
+  'observador': ['read']
+};

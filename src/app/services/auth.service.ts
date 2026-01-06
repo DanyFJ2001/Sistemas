@@ -6,30 +6,36 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  User,
-  browserLocalPersistence,
-  setPersistence
+  User
 } from 'firebase/auth';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { filter, take } from 'rxjs/operators';
+import { 
+  getDatabase, 
+  ref, 
+  get
+} from 'firebase/database';
+import { BehaviorSubject } from 'rxjs';
+import { UserProfile, UserRole, ROLE_PERMISSIONS } from '../models/user.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private auth: any;
+  private database: any;
+  
+  // Usuario de Firebase Auth
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
   
-  // NUEVO: Estado de inicialización
-  private authInitializedSubject = new BehaviorSubject<boolean>(false);
-  public authInitialized$ = this.authInitializedSubject.asObservable();
+  // Perfil del usuario con rol (NUEVO)
+  private userProfileSubject = new BehaviorSubject<UserProfile | null>(null);
+  public userProfile$ = this.userProfileSubject.asObservable();
 
   constructor() {
-    this.initFirebaseAuth();
+    this.initFirebase();
   }
 
-  private async initFirebaseAuth(): Promise<void> {
+  private initFirebase(): void {
     const firebaseConfig = {
       apiKey: "AIzaSyDzgcUjSj2i53ITnBAyGrBpLSLRxqBmiIE",
       authDomain: "prueba-bfc8a.firebaseapp.com",
@@ -43,87 +49,148 @@ export class AuthService {
 
     const app = initializeApp(firebaseConfig);
     this.auth = getAuth(app);
-
-    // Configurar persistencia local
-    try {
-      await setPersistence(this.auth, browserLocalPersistence);
-    } catch (error) {
-      console.error('Error configurando persistencia:', error);
-    }
+    this.database = getDatabase(app);
 
     // Escuchar cambios en el estado de autenticación
-    onAuthStateChanged(this.auth, (user) => {
+    onAuthStateChanged(this.auth, async (user) => {
       this.currentUserSubject.next(user);
-      
-      // Marcar como inicializado después del primer check
-      if (!this.authInitializedSubject.value) {
-        this.authInitializedSubject.next(true);
-      }
       
       if (user) {
         console.log('✅ Usuario autenticado:', user.email);
+        // NUEVO: Cargar el perfil con el rol
+        await this.loadUserProfile(user.uid);
       } else {
         console.log('❌ Usuario no autenticado');
+        this.userProfileSubject.next(null);
       }
     });
   }
 
-  // Login con email y password
-  async login(email: string, password: string): Promise<User> {
+  // ========== CARGAR PERFIL CON ROL (NUEVO) ==========
+  
+  private async loadUserProfile(uid: string): Promise<UserProfile | null> {
+    try {
+      const userRef = ref(this.database, `users/${uid}`);
+      const snapshot = await get(userRef);
+      
+      if (snapshot.exists()) {
+        const profile = snapshot.val() as UserProfile;
+        this.userProfileSubject.next(profile);
+        console.log('📋 Perfil cargado:', profile.email, '| Rol:', profile.role);
+        return profile;
+      } else {
+        console.warn('⚠️ No se encontró perfil para el usuario:', uid);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error cargando perfil:', error);
+      return null;
+    }
+  }
+
+  // ========== LOGIN ==========
+
+  async login(email: string, password: string): Promise<UserProfile> {
     try {
       const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
-      return userCredential.user;
+      
+      // Cargar el perfil con rol
+      const profile = await this.loadUserProfile(userCredential.user.uid);
+      
+      if (!profile) {
+        throw new Error('No se encontró tu perfil. Contacta al administrador.');
+      }
+      
+      if (!profile.active) {
+        await this.logout();
+        throw new Error('Tu cuenta está desactivada. Contacta al administrador.');
+      }
+      
+      return profile;
     } catch (error: any) {
-      console.error('Error en login:', error);
+      console.error('❌ Error en login:', error);
       throw this.handleAuthError(error);
     }
   }
 
-  // Logout
+  // ========== LOGOUT ==========
+
   async logout(): Promise<void> {
     try {
       await signOut(this.auth);
       this.currentUserSubject.next(null);
+      this.userProfileSubject.next(null);
     } catch (error) {
-      console.error('Error en logout:', error);
+      console.error('❌ Error en logout:', error);
       throw error;
     }
   }
 
-  // Obtener usuario actual
+  // ========== MÉTODOS DE USUARIO ==========
+
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  // Verificar si está autenticado
-  isAuthenticated(): boolean {
-    return this.currentUserSubject.value !== null;
-  }
-
-  // NUEVO: Esperar a que Firebase termine de inicializar
-  waitForAuthInit(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (this.authInitializedSubject.value) {
-        resolve(this.isAuthenticated());
-      } else {
-        this.authInitialized$.pipe(
-          filter(initialized => initialized),
-          take(1)
-        ).subscribe(() => {
-          resolve(this.isAuthenticated());
-        });
-      }
-    });
-  }
-
-  // Obtener email del usuario
   getUserEmail(): string | null {
     return this.currentUserSubject.value?.email || null;
   }
 
-  // Manejo de errores de Firebase Auth
+  isAuthenticated(): boolean {
+    return this.currentUserSubject.value !== null;
+  }
+
+  // ========== MÉTODOS DE ROL (NUEVOS) ==========
+
+  // Obtener el perfil completo del usuario
+  getCurrentProfile(): UserProfile | null {
+    return this.userProfileSubject.value;
+  }
+
+  // Obtener solo el rol
+  getUserRole(): UserRole | null {
+    return this.userProfileSubject.value?.role || null;
+  }
+
+  // Verificar si tiene un permiso específico
+  hasPermission(permission: string): boolean {
+    const profile = this.userProfileSubject.value;
+    if (!profile) return false;
+    
+    const permissions = ROLE_PERMISSIONS[profile.role] || [];
+    return permissions.includes(permission);
+  }
+
+  // Verificar si tiene un rol específico
+  hasRole(role: UserRole): boolean {
+    return this.userProfileSubject.value?.role === role;
+  }
+
+  // Verificar si es administrador
+  isAdmin(): boolean {
+    return this.hasRole('admin');
+  }
+
+  // Verificar si es jefe de inventario
+  isJefeInventario(): boolean {
+    return this.hasRole('jefe_inventario');
+  }
+
+  // Verificar si es observador
+  isObservador(): boolean {
+    return this.hasRole('observador');
+  }
+
+  // ========== MANEJO DE ERRORES ==========
+
   private handleAuthError(error: any): Error {
+    // Si ya es un Error con mensaje personalizado, devolverlo
+    if (error instanceof Error && !error.message.includes('Firebase')) {
+      return error;
+    }
+
     let message = 'Error al iniciar sesión';
+
     switch (error.code) {
       case 'auth/invalid-email':
         message = 'El correo electrónico no es válido';
@@ -149,6 +216,7 @@ export class AuthService {
       default:
         message = error.message || 'Error al iniciar sesión';
     }
+
     return new Error(message);
   }
 }
