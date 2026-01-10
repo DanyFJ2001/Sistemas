@@ -33,6 +33,9 @@ export const routes: Routes = [
       {
         path: 'Ai',
         loadComponent: () => import('./pages/automatizaciones/automatizaciones.component').then(m => m.AutomatizacionesComponent)
+      },{
+        path: 'difusiones',
+        loadComponent: () => import('./pages/difusiones/difusiones.component').then(m => m.DifusionesComponent)
       },
       
      

@@ -1,0 +1,314 @@
+<!-- src/app/pages/difusiones/difusiones.component.html -->
+<div class="difusiones-container">
+
+  <!-- ============================================== -->
+  <!-- HEADER                                         -->
+  <!-- ============================================== -->
+  <div class="page-header">
+    <div class="header-info">
+      <h1 class="page-title">📢 Difusiones WhatsApp</h1>
+      <p class="page-subtitle">Envía mensajes masivos a tus contactos</p>
+    </div>
+
+    <div class="header-status">
+      <div class="status-badge" [ngClass]="estadoConexion">
+        <span class="status-dot"></span>
+        <span class="status-text">{{ mensajeEstado }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- SECCIÓN 1: CONEXIÓN WHATSAPP (QR)              -->
+  <!-- ============================================== -->
+  <section class="section-card conexion-section" *ngIf="!whatsappConectado">
+    <div class="section-header">
+      <h2>🔗 Conectar WhatsApp</h2>
+      <p>Vincula tu cuenta de WhatsApp para enviar mensajes</p>
+    </div>
+
+    <div class="qr-container">
+      <!-- Estado: Desconectado -->
+      <div class="qr-placeholder" *ngIf="estadoConexion === 'desconectado'">
+        <div class="qr-icon">📱</div>
+        <h3>WhatsApp no conectado</h3>
+        <p>Haz clic en el botón para generar el código QR</p>
+        <button class="btn-primary btn-lg" (click)="iniciarConexionWhatsApp()">
+          <span class="btn-icon">🔄</span>
+          Generar Código QR
+        </button>
+      </div>
+
+      <!-- Estado: Esperando QR -->
+      <div class="qr-loading" *ngIf="estadoConexion === 'esperando_qr'">
+        <div class="spinner-lg"></div>
+        <p>Generando código QR...</p>
+      </div>
+
+      <!-- Estado: Mostrando QR -->
+      <div class="qr-display" *ngIf="estadoConexion === 'escaneando'">
+        <div class="qr-box">
+          <!-- TODO: Aquí va el QR real del backend -->
+          <div class="qr-mock">
+            <svg viewBox="0 0 100 100" class="qr-svg">
+              <rect fill="#fff" width="100" height="100"/>
+              <text x="50" y="45" text-anchor="middle" font-size="8" fill="#666">QR CODE</text>
+              <text x="50" y="58" text-anchor="middle" font-size="6" fill="#999">Placeholder</text>
+            </svg>
+            <p class="qr-hint">👆 Aquí aparecerá el QR real</p>
+          </div>
+          
+          <!-- Si tienes el QR real, usa esto:
+          <img [src]="qrCodeUrl" alt="Código QR WhatsApp" class="qr-image">
+          -->
+        </div>
+        
+        <div class="qr-instructions">
+          <h3>📲 Escanea con WhatsApp</h3>
+          <ol>
+            <li>Abre WhatsApp en tu teléfono</li>
+            <li>Toca <strong>Menú</strong> o <strong>Configuración</strong></li>
+            <li>Selecciona <strong>Dispositivos vinculados</strong></li>
+            <li>Toca <strong>Vincular un dispositivo</strong></li>
+            <li>Apunta tu teléfono a esta pantalla</li>
+          </ol>
+        </div>
+
+        <div class="qr-actions">
+          <button class="btn-secondary" (click)="iniciarConexionWhatsApp()">
+            🔄 Regenerar QR
+          </button>
+          <!-- Para desarrollo -->
+          <button class="btn-success" (click)="simularConexionExitosa()">
+            ✅ Simular Conexión (Dev)
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- CONTENIDO PRINCIPAL (Solo si está conectado)   -->
+  <!-- ============================================== -->
+  <div class="main-content" *ngIf="whatsappConectado">
+    
+    <!-- Barra de conexión -->
+    <div class="conexion-bar">
+      <div class="conexion-info">
+        <span class="conexion-icon">✅</span>
+        <span>WhatsApp conectado y listo</span>
+      </div>
+      <button class="btn-danger-sm" (click)="desconectarWhatsApp()">
+        🔌 Desconectar
+      </button>
+    </div>
+
+    <div class="content-grid">
+      
+      <!-- ============================================== -->
+      <!-- SECCIÓN 2: CARGA DE CONTACTOS (EXCEL)          -->
+      <!-- ============================================== -->
+      <section class="section-card contactos-section">
+        <div class="section-header">
+          <h2>📋 Contactos</h2>
+          <span class="badge-count">{{ contactos.length }} contactos</span>
+        </div>
+
+        <!-- Dropzone para Excel -->
+        <div class="excel-upload">
+          <div class="upload-zone">
+            <div class="upload-icon">📊</div>
+            <h3>Sube tu archivo de contactos</h3>
+            <p>Excel (.xlsx, .xls) o CSV con números de teléfono</p>
+            <p class="upload-hint">Detectamos automáticamente la columna de teléfonos</p>
+            
+            <input type="file" id="excelInput" 
+                   accept=".xlsx,.xls,.csv" 
+                   (change)="onArchivoExcel($event)"
+                   class="file-input">
+            <label for="excelInput" class="btn-primary">
+              📁 Seleccionar Archivo
+            </label>
+          </div>
+        </div>
+
+        <!-- Lista de contactos -->
+        <div class="contactos-list" *ngIf="contactos.length > 0">
+          <div class="contactos-toolbar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" 
+                     [(ngModel)]="busquedaContacto"
+                     (input)="filtrarContactos()"
+                     placeholder="Buscar contacto...">
+            </div>
+            
+            <div class="toolbar-actions">
+              <label class="checkbox-label">
+                <input type="checkbox" 
+                       [checked]="todosSeleccionados"
+                       (change)="toggleSeleccionTodos()">
+                Seleccionar todos
+              </label>
+              <button class="btn-danger-sm" (click)="limpiarContactos()">
+                🗑️ Limpiar
+              </button>
+            </div>
+          </div>
+
+          <div class="contactos-table">
+            <div class="table-header">
+              <div class="th-check"></div>
+              <div class="th-telefono">Teléfono</div>
+              <div class="th-nombre">Nombre</div>
+              <div class="th-acciones">Acciones</div>
+            </div>
+
+            <div class="table-body">
+              <div class="table-row" *ngFor="let contacto of contactosFiltrados">
+                <div class="td-check">
+                  <input type="checkbox" [(ngModel)]="contacto.seleccionado">
+                </div>
+                <div class="td-telefono">
+                  <span class="telefono-badge">📱 {{ formatearTelefono(contacto.telefono) }}</span>
+                </div>
+                <div class="td-nombre">
+                  {{ contacto.nombre || '—' }}
+                </div>
+                <div class="td-acciones">
+                  <button class="btn-icon-sm" (click)="eliminarContacto(contacto)" title="Eliminar">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="contactos-footer">
+            <span class="selected-count">
+              {{ contactosSeleccionados.length }} seleccionados
+            </span>
+          </div>
+        </div>
+
+        <!-- Sin contactos -->
+        <div class="empty-contactos" *ngIf="contactos.length === 0">
+          <div class="empty-icon">📭</div>
+          <p>No hay contactos cargados</p>
+          <p class="empty-hint">Sube un archivo Excel o CSV para comenzar</p>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- SECCIÓN 3: COMPOSITOR DE MENSAJE               -->
+      <!-- ============================================== -->
+      <section class="section-card mensaje-section">
+        <div class="section-header">
+          <h2>✍️ Mensaje</h2>
+        </div>
+
+        <div class="mensaje-composer">
+          <!-- Área de texto -->
+          <div class="mensaje-input-container">
+            <textarea 
+              class="mensaje-textarea"
+              [(ngModel)]="mensajeTexto"
+              placeholder="Escribe tu mensaje aquí...&#10;&#10;Puedes usar variables como {nombre} si tus contactos tienen nombres"
+              rows="6"
+              [disabled]="enviando"
+            ></textarea>
+            <div class="mensaje-counter">
+              {{ mensajeTexto.length }} caracteres
+            </div>
+          </div>
+
+          <!-- Adjuntar imagen -->
+          <div class="imagen-adjunta">
+            <div class="imagen-preview" *ngIf="imagenPreview">
+              <img [src]="imagenPreview" alt="Imagen adjunta">
+              <button class="btn-remove-img" (click)="eliminarImagen()">✕</button>
+            </div>
+            
+            <div class="imagen-upload" *ngIf="!imagenPreview">
+              <input type="file" id="imagenInput" 
+                     accept="image/*"
+                     (change)="onImagenSeleccionada($event)"
+                     class="file-input">
+              <label for="imagenInput" class="btn-secondary">
+                🖼️ Adjuntar Imagen
+              </label>
+            </div>
+          </div>
+
+          <!-- Botón de envío -->
+          <div class="envio-actions">
+            <div class="envio-resumen" *ngIf="contactosSeleccionados.length > 0">
+              <span>📤 Enviar a <strong>{{ contactosSeleccionados.length }}</strong> contactos</span>
+            </div>
+            
+            <button 
+              class="btn-primary btn-lg btn-enviar"
+              [disabled]="enviando || contactosSeleccionados.length === 0 || (!mensajeTexto.trim() && !imagenAdjunta)"
+              (click)="iniciarEnvio()"
+            >
+              <span *ngIf="!enviando">🚀 Iniciar Envío</span>
+              <span *ngIf="enviando">
+                <span class="spinner-sm"></span> Enviando...
+              </span>
+            </button>
+          </div>
+
+          <!-- Progreso de envío -->
+          <div class="envio-progreso" *ngIf="enviando">
+            <div class="progress-header">
+              <span>Enviando mensajes...</span>
+              <span>{{ progresoEnvio }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="progresoEnvio"></div>
+            </div>
+            <div class="progress-stats">
+              <span class="stat-success">✅ {{ mensajesEnviados }} enviados</span>
+              <span class="stat-error">❌ {{ mensajesFallidos }} fallidos</span>
+            </div>
+            <button class="btn-danger" (click)="cancelarEnvio()">
+              ⏹️ Cancelar
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============================================== -->
+    <!-- SECCIÓN 4: HISTORIAL DE ENVÍOS                 -->
+    <!-- ============================================== -->
+    <section class="section-card historial-section" *ngIf="historialEnvios.length > 0">
+      <div class="section-header">
+        <h2>📜 Historial de Envíos</h2>
+        <button class="btn-secondary-sm" (click)="limpiarHistorial()">
+          🗑️ Limpiar
+        </button>
+      </div>
+
+      <div class="historial-table">
+        <div class="historial-row" *ngFor="let envio of historialEnvios">
+          <div class="historial-fecha">
+            📅 {{ formatearFecha(envio.fecha) }}
+          </div>
+          <div class="historial-stats">
+            <span class="stat-total">👥 {{ envio.contactos }}</span>
+            <span class="stat-ok">✅ {{ envio.enviados }}</span>
+            <span class="stat-fail">❌ {{ envio.fallidos }}</span>
+          </div>
+          <div class="historial-mensaje">
+            {{ envio.mensaje }}
+            <span *ngIf="envio.conImagen">🖼️</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</div>
