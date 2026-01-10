@@ -48,7 +48,6 @@
       <section class="section-card">
         <div class="section-header">
           <h2>📋 Contactos</h2>
-          <a routerLink="/bases-contactos" class="btn-link">➕ Nueva</a>
         </div>
         
         <div class="base-selector">
@@ -83,34 +82,236 @@
       </section>
 
       <!-- MENSAJE -->
-      <section class="section-card">
-        <div class="section-header"><h2>✍️ Mensaje</h2></div>
-        <textarea class="mensaje-textarea" [(ngModel)]="mensajeTexto" placeholder="Escribe tu mensaje..." rows="5" [disabled]="enviando"></textarea>
-        
-        <div class="imagen-adjunta">
-          <div *ngIf="imagenPreview" class="imagen-preview">
-            <img [src]="imagenPreview">
-            <button (click)="eliminarImagen()">✕</button>
-          </div>
-          <div *ngIf="!imagenPreview">
-            <input type="file" id="imgInput" accept="image/*" (change)="onImagenSeleccionada($event)" class="file-input">
-            <label for="imgInput" class="btn-secondary">🖼️ Adjuntar</label>
-          </div>
+      <!-- MENSAJE Y CONFIGURACIÓN -->
+<section class="section-card">
+  <div class="section-header">
+    <h2>✍️ Mensaje</h2>
+  </div>
+
+  <!-- CONTEXTO PARA IA -->
+  <div class="ia-context-box">
+    <div class="ia-header">
+      <span>🤖 Asistente IA</span>
+      <label class="toggle-switch">
+        <input type="checkbox" [(ngModel)]="usarIA">
+        <span class="slider"></span>
+      </label>
+    </div>
+    
+    <div class="ia-content" *ngIf="usarIA">
+      <div class="form-group">
+        <label>📋 Contexto del negocio</label>
+        <textarea 
+          [(ngModel)]="contextoNegocio" 
+          placeholder="Ej: Somos un laboratorio clínico que ofrece exámenes médicos ocupacionales..."
+          rows="2"
+          [disabled]="enviando">
+        </textarea>
+      </div>
+      
+      <div class="form-group">
+        <label>🎯 Objetivo del mensaje</label>
+        <select [(ngModel)]="objetivoMensaje" [disabled]="enviando">
+          <option value="">Selecciona...</option>
+          <option value="promocion">📢 Promoción / Oferta</option>
+          <option value="recordatorio">⏰ Recordatorio de cita</option>
+          <option value="informativo">📄 Informativo</option>
+          <option value="seguimiento">🔄 Seguimiento</option>
+          <option value="bienvenida">👋 Bienvenida</option>
+          <option value="encuesta">📊 Encuesta / Feedback</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>💡 Instrucciones adicionales</label>
+        <textarea 
+          [(ngModel)]="instruccionesIA" 
+          placeholder="Ej: Mencionar descuento del 20%, incluir enlace de citas, tono amigable..."
+          rows="2"
+          [disabled]="enviando">
+        </textarea>
+      </div>
+      
+      <div class="ia-actions">
+        <button 
+          class="btn-ia" 
+          (click)="generarMensajeIA()" 
+          [disabled]="generandoIA || !contextoNegocio || !objetivoMensaje">
+          {{ generandoIA ? '⏳ Generando...' : '✨ Generar mensaje' }}
+        </button>
+        <button 
+          class="btn-secondary" 
+          (click)="generarVariantes()" 
+          *ngIf="mensajeTexto"
+          [disabled]="generandoIA">
+          🔄 Variantes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENSAJE -->
+  <div class="mensaje-box">
+    <label>📝 Mensaje a enviar</label>
+    <textarea 
+      class="mensaje-textarea" 
+      [(ngModel)]="mensajeTexto" 
+      placeholder="Escribe tu mensaje o genera uno con IA..." 
+      rows="5" 
+      [disabled]="enviando">
+    </textarea>
+    <div class="mensaje-meta">
+      <span>{{ mensajeTexto.length }} caracteres</span>
+    </div>
+  </div>
+
+  <!-- VARIABLES DISPONIBLES -->
+  <div class="variables-box">
+    <span class="variables-label">Variables:</span>
+    <button 
+      *ngFor="let variable of variablesDisponibles"
+      class="var-chip" 
+      (click)="insertarVariable(variable.etiqueta)" 
+      [title]="variable.descripcion">
+      {{ variable.etiqueta }}
+    </button>
+  </div>
+
+  <!-- IMAGEN ADJUNTA -->
+  <div class="imagen-adjunta">
+    <div *ngIf="imagenPreview" class="imagen-preview">
+      <img [src]="imagenPreview">
+      <button class="btn-remove" (click)="eliminarImagen()">✕</button>
+    </div>
+    <div *ngIf="!imagenPreview" class="upload-zone">
+      <input type="file" id="imgInput" accept="image/*" (change)="onImagenSeleccionada($event)" class="file-input">
+      <label for="imgInput" class="btn-upload">
+        <span>🖼️</span>
+        <span>Adjuntar imagen</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- PROGRAMACIÓN DE HORARIOS -->
+  <div class="horarios-box">
+    <div class="horarios-header">
+      <span>⏰ Programar envío</span>
+      <label class="toggle-switch">
+        <input type="checkbox" [(ngModel)]="programarEnvio">
+        <span class="slider"></span>
+      </label>
+    </div>
+    
+    <div class="horarios-content" *ngIf="programarEnvio">
+      <div class="horarios-grid">
+        <!-- Tipo de programación -->
+        <div class="form-group">
+          <label>📅 Tipo</label>
+          <select [(ngModel)]="tipoProgramacion" [disabled]="enviando">
+            <option value="ahora">Enviar ahora</option>
+            <option value="programado">Fecha específica</option>
+            <option value="recurrente">Recurrente</option>
+          </select>
         </div>
 
-        <div class="envio-actions">
-          <span *ngIf="contactosSeleccionados.length > 0">📤 {{ contactosSeleccionados.length }} contactos</span>
-          <button class="btn-primary" [disabled]="enviando || contactosSeleccionados.length === 0" (click)="iniciarEnvio()">
-            {{ enviando ? 'Enviando...' : '🚀 Enviar' }}
-          </button>
+        <!-- Fecha (si es programado) -->
+        <div class="form-group" *ngIf="tipoProgramacion === 'programado'">
+          <label>📆 Fecha</label>
+          <input type="date" [(ngModel)]="fechaEnvio" [min]="fechaMinima" [disabled]="enviando">
         </div>
 
-        <div class="envio-progreso" *ngIf="enviando">
-          <div class="progress-bar"><div class="progress-fill" [style.width.%]="progresoEnvio"></div></div>
-          <p>✅ {{ mensajesEnviados }} | ❌ {{ mensajesFallidos }}</p>
-          <button class="btn-danger" (click)="cancelarEnvio()">Cancelar</button>
+        <!-- Hora inicio -->
+        <div class="form-group">
+          <label>🕐 Hora inicio</label>
+          <input type="time" [(ngModel)]="horaInicio" [disabled]="enviando">
         </div>
-      </section>
+
+        <!-- Hora fin -->
+        <div class="form-group">
+          <label>🕕 Hora fin</label>
+          <input type="time" [(ngModel)]="horaFin" [disabled]="enviando">
+        </div>
+
+        <!-- Intervalo entre mensajes -->
+        <div class="form-group">
+          <label>⏱️ Intervalo (seg)</label>
+          <input type="number" [(ngModel)]="intervaloSegundos" min="5" max="60" [disabled]="enviando">
+        </div>
+
+        <!-- Días de la semana (si es recurrente) -->
+        <div class="form-group full-width" *ngIf="tipoProgramacion === 'recurrente'">
+          <label>📆 Días de envío</label>
+          <div class="dias-semana">
+            <label *ngFor="let dia of diasSemana" class="dia-check">
+              <input type="checkbox" [(ngModel)]="dia.activo" [disabled]="enviando">
+              <span>{{ dia.nombre }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen de programación -->
+      <div class="programacion-resumen" *ngIf="tipoProgramacion !== 'ahora'">
+        <p>
+          <strong>📋 Resumen:</strong>
+          <span *ngIf="tipoProgramacion === 'programado'">
+            Envío el {{ fechaEnvio | date:'dd/MM/yyyy' }} de {{ horaInicio }} a {{ horaFin }}
+          </span>
+          <span *ngIf="tipoProgramacion === 'recurrente'">
+            Envío {{ getDiasActivos() }} de {{ horaInicio }} a {{ horaFin }}
+          </span>
+          con {{ intervaloSegundos }}s entre mensajes
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCIONES DE ENVÍO -->
+  <div class="envio-actions">
+    <div class="envio-info">
+      <span *ngIf="contactosSeleccionados.length > 0" class="contactos-badge">
+        📤 {{ contactosSeleccionados.length }} contactos
+      </span>
+      <span *ngIf="contactosSeleccionados.length === 0" class="contactos-empty">
+        Selecciona contactos primero
+      </span>
+    </div>
+    
+    <div class="envio-buttons">
+      <button 
+        class="btn-secondary" 
+        (click)="previsualizarMensaje()" 
+        [disabled]="!mensajeTexto || contactosSeleccionados.length === 0">
+        👁️ Previsualizar
+      </button>
+      <button 
+        class="btn-primary" 
+        [disabled]="enviando || contactosSeleccionados.length === 0 || !mensajeTexto" 
+        (click)="iniciarEnvio()">
+        {{ enviando ? '⏳ Enviando...' : (programarEnvio && tipoProgramacion !== 'ahora' ? '📅 Programar' : '🚀 Enviar ahora') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- PROGRESO DE ENVÍO -->
+  <div class="envio-progreso" *ngIf="enviando">
+    <div class="progreso-header">
+      <span>Enviando mensajes...</span>
+      <span>{{ progresoEnvio | number:'1.0-0' }}%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="progresoEnvio"></div>
+    </div>
+    <div class="progreso-stats">
+      <span class="stat-success">✅ {{ mensajesEnviados }} enviados</span>
+      <span class="stat-error">❌ {{ mensajesFallidos }} fallidos</span>
+      <span class="stat-pending">⏳ {{ contactosSeleccionados.length - mensajesEnviados - mensajesFallidos }} pendientes</span>
+    </div>
+    <button class="btn-danger" (click)="cancelarEnvio()">
+      ⛔ Cancelar envío
+    </button>
+  </div>
+</section>
     </div>
 
     <!-- HISTORIAL -->
@@ -126,4 +327,113 @@
       </div>
     </section>
   </div>
+  <!-- MODAL PREVISUALIZACIÓN WHATSAPP -->
+<div class="preview-overlay" *ngIf="showPreviewModal" (click)="cerrarPreviewModal()">
+  <div class="whatsapp-preview" (click)="$event.stopPropagation()">
+    
+    <!-- Header WhatsApp -->
+    <div class="wa-header">
+      <button class="wa-back" (click)="cerrarPreviewModal()">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="currentColor" d="M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8 8-8z"/>
+        </svg>
+      </button>
+      <div class="wa-avatar">
+        <img src="assets/logo-segurilab.png" alt="Logo" onerror="this.style.display='none'">
+        <span class="wa-avatar-fallback">S</span>
+      </div>
+      <div class="wa-contact-info">
+        <span class="wa-contact-name">Segurilab</span>
+        <span class="wa-contact-status">en línea</span>
+      </div>
+      <div class="wa-header-actions">
+        <button class="wa-icon-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+          </svg>
+        </button>
+        <button class="wa-icon-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+          </svg>
+        </button>
+        <button class="wa-icon-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="wa-chat-area">
+      <!-- Imagen adjunta (si hay) -->
+      <div class="wa-message wa-message-out" *ngIf="imagenPreview">
+        <div class="wa-message-image">
+          <img [src]="imagenPreview" alt="Imagen adjunta">
+        </div>
+        <div class="wa-message-meta">
+          <span class="wa-time">{{ getHoraActual() }}</span>
+          <svg class="wa-check" viewBox="0 0 16 15" width="16" height="15">
+            <path fill="#53bdeb" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Mensaje de texto -->
+      <div class="wa-message wa-message-out">
+        <div class="wa-message-text">{{ mensajePreview }}</div>
+        <div class="wa-message-meta">
+          <span class="wa-time">{{ getHoraActual() }}</span>
+          <svg class="wa-check" viewBox="0 0 16 15" width="16" height="15">
+            <path fill="#53bdeb" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer WhatsApp -->
+    <div class="wa-footer">
+      <button class="wa-emoji-btn">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="#8696a0" d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363 1.108s-.669 1.959-5.051 1.959c-3.505 0-5.388-1.164-5.607-1.959 0 0 5.912 1.055 10.658 0zM11.804 1.011C5.609 1.011.978 6.033.978 12.228s4.826 10.761 11.021 10.761S23.02 18.423 23.02 12.228c.001-6.195-5.021-11.217-11.216-11.217zM12 21.354c-5.273 0-9.381-3.886-9.381-9.159s3.942-9.548 9.215-9.548 9.548 4.275 9.548 9.548c-.001 5.272-4.109 9.159-9.382 9.159zm3.108-9.751c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"/>
+        </svg>
+      </button>
+      <div class="wa-input-container">
+        <input type="text" placeholder="Escribe un mensaje" disabled>
+        <button class="wa-attach-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="#8696a0" d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 0 0 3.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 0 1-2.829 1.171 3.975 3.975 0 0 1-2.83-1.173 3.973 3.973 0 0 1-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.572.572 0 0 0-.834.018l-7.205 7.207a5.577 5.577 0 0 0-1.645 3.971z"/>
+          </svg>
+        </button>
+        <button class="wa-camera-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="#8696a0" d="M21.317 4.381H10.971L9.078 2.45c-.246-.251-.736-.457-1.089-.457H4.905c-.352 0-.837.211-1.078.468L1.201 5.272C.96 5.529.763 6.028.763 6.38v1.878l-.002.01v11.189a1.92 1.92 0 0 0 1.921 1.921h18.634a1.92 1.92 0 0 0 1.921-1.921V6.302a1.92 1.92 0 0 0-1.92-1.921zM12.076 18.51a5.577 5.577 0 1 1 0-11.154 5.577 5.577 0 0 1 0 11.154zm0-9.506a3.929 3.929 0 1 0 0 7.858 3.929 3.929 0 0 0 0-7.858z"/>
+          </svg>
+        </button>
+      </div>
+      <button class="wa-mic-btn">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="white" d="M11.999 14.942c2.001 0 3.531-1.53 3.531-3.531V4.35c0-2.001-1.53-3.531-3.531-3.531S8.469 2.35 8.469 4.35v7.061c0 2.001 1.53 3.531 3.53 3.531zm6.238-3.53c0 3.531-2.942 6.002-6.237 6.002s-6.237-2.471-6.237-6.002H3.761c0 4.001 3.178 7.297 7.061 7.885v3.884h2.354v-3.884c3.884-.588 7.061-3.884 7.061-7.885h-2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Info del contacto -->
+    <div class="wa-preview-info">
+      <p><strong>📱 Destinatario:</strong> {{ contactoPreview?.nombre || 'Sin nombre' }}</p>
+      <p><strong>📞 Teléfono:</strong> {{ formatearTelefono(contactoPreview?.telefono || '') }}</p>
+      <p *ngIf="imagenPreview"><strong>🖼️ Imagen:</strong> Adjunta</p>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="wa-preview-actions">
+      <button class="btn-secondary" (click)="cerrarPreviewModal()">Cerrar</button>
+      <button class="btn-primary" (click)="cerrarPreviewModal(); iniciarEnvio();" 
+              [disabled]="contactosSeleccionados.length === 0">
+        🚀 Enviar a {{ contactosSeleccionados.length }} contactos
+      </button>
+    </div>
+  </div>
+</div>
 </div>
