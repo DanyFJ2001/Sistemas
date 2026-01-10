@@ -1,0 +1,311 @@
+<!-- src/app/pages/bases-contactos/bases-contactos.component.html -->
+<div class="bases-container">
+
+  <!-- ============================================== -->
+  <!-- HEADER                                         -->
+  <!-- ============================================== -->
+  <div class="page-header">
+    <div class="header-info">
+      <h1 class="page-title">📋 Bases de Contactos</h1>
+      <p class="page-subtitle">Gestiona tus listas de contactos para difusiones</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-primary" (click)="abrirModal()">
+        <span>➕</span> Nueva Base
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- ESTADÍSTICAS                                   -->
+  <!-- ============================================== -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">📚</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ stats.totalBases }}</span>
+        <span class="stat-label">Bases guardadas</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ stats.totalContactos | number }}</span>
+        <span class="stat-label">Total de contactos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- BUSCADOR                                       -->
+  <!-- ============================================== -->
+  <div class="search-section">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" 
+             [(ngModel)]="busqueda"
+             (input)="filtrarBases()"
+             placeholder="Buscar base por nombre...">
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- LOADING                                        -->
+  <!-- ============================================== -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando bases...</p>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- LISTA DE BASES                                 -->
+  <!-- ============================================== -->
+  <div *ngIf="!loading" class="bases-grid">
+    
+    <!-- Empty State -->
+    <div *ngIf="basesFiltradas.length === 0" class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No hay bases de contactos</h3>
+      <p>Sube tu primer archivo Excel para crear una base</p>
+      <button class="btn-primary" (click)="abrirModal()">
+        ➕ Crear Primera Base
+      </button>
+    </div>
+
+    <!-- Cards de bases -->
+    <div *ngFor="let base of basesFiltradas" class="base-card">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <div class="card-title-section">
+          <h3 class="card-title">{{ base.nombre }}</h3>
+          <p class="card-desc" *ngIf="base.descripcion">{{ base.descripcion }}</p>
+        </div>
+      </div>
+
+      <div class="card-stats">
+        <div class="card-stat">
+          <span class="stat-number">{{ base.totalContactos | number }}</span>
+          <span class="stat-text">contactos</span>
+        </div>
+      </div>
+
+      <div class="card-meta">
+        <span class="meta-date">📅 {{ formatearFecha(base.createdAt) }}</span>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn-action btn-view" (click)="verBase(base)" title="Ver contactos">
+          👁️ Ver
+        </button>
+        <button class="btn-action btn-delete" (click)="eliminarBase(base)" title="Eliminar">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ============================================== -->
+<!-- MODAL: NUEVA BASE                              -->
+<!-- ============================================== -->
+<div *ngIf="showModal" class="modal-overlay" (click)="cerrarModal()">
+  <div class="modal-content modal-large" (click)="$event.stopPropagation()">
+    
+    <div class="modal-header">
+      <h2>📊 Nueva Base de Contactos</h2>
+      <button class="close-btn" (click)="cerrarModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      
+      <!-- Paso 1: Subir Excel -->
+      <div class="form-section">
+        <h3 class="section-title">1️⃣ Sube tu archivo Excel</h3>
+        
+        <div class="upload-zone" [class.has-file]="archivoSeleccionado">
+          <div *ngIf="!archivoSeleccionado" class="upload-placeholder">
+            <div class="upload-icon">📁</div>
+            <p>Arrastra tu archivo aquí o haz clic para seleccionar</p>
+            <p class="upload-hint">Excel (.xlsx, .xls) o CSV</p>
+          </div>
+          
+          <div *ngIf="archivoSeleccionado" class="file-selected">
+            <span class="file-icon">✅</span>
+            <span class="file-name">{{ archivoSeleccionado.name }}</span>
+            <button class="btn-change" (click)="archivoSeleccionado = null">Cambiar</button>
+          </div>
+
+          <input type="file" 
+                 accept=".xlsx,.xls,.csv"
+                 (change)="onArchivoSeleccionado($event)"
+                 class="file-input"
+                 [disabled]="procesandoExcel">
+        </div>
+
+        <div *ngIf="procesandoExcel" class="processing-msg">
+          <span class="spinner-sm"></span> Procesando archivo...
+        </div>
+      </div>
+
+      <!-- Paso 2: Seleccionar columnas -->
+      <div class="form-section" *ngIf="columnasDetectadas.length > 0">
+        <h3 class="section-title">2️⃣ Selecciona las columnas</h3>
+        
+        <div class="columns-grid">
+          <div class="form-group">
+            <label>Columna de Teléfono *</label>
+            <select [(ngModel)]="columnaSeleccionada" class="form-select">
+              <option value="">-- Selecciona --</option>
+              <option *ngFor="let col of columnasDetectadas" [value]="col">{{ col }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Columna de Nombre (opcional)</label>
+            <select [(ngModel)]="columnaNombre" class="form-select">
+              <option value="">-- Sin nombre --</option>
+              <option *ngFor="let col of columnasDetectadas" [value]="col">{{ col }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Preview de datos -->
+        <div class="preview-section" *ngIf="previewData.length > 0">
+          <h4>Vista previa (primeras 5 filas):</h4>
+          <div class="preview-table-container">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th *ngFor="let col of columnasDetectadas" 
+                      [class.selected]="col === columnaSeleccionada || col === columnaNombre">
+                    {{ col }}
+                    <span *ngIf="col === columnaSeleccionada" class="col-badge">📱</span>
+                    <span *ngIf="col === columnaNombre" class="col-badge">👤</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of previewData">
+                  <td *ngFor="let col of columnasDetectadas"
+                      [class.selected]="col === columnaSeleccionada || col === columnaNombre">
+                    {{ row[col] || '-' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <button class="btn-secondary" 
+                (click)="extraerContactos()"
+                [disabled]="!columnaSeleccionada">
+          🔍 Extraer Contactos
+        </button>
+      </div>
+
+      <!-- Paso 3: Confirmar y nombrar -->
+      <div class="form-section" *ngIf="contactosExtraidos.length > 0">
+        <h3 class="section-title">3️⃣ Nombra tu base</h3>
+        
+        <div class="extraction-result">
+          <span class="result-icon">✅</span>
+          <span class="result-text">
+            <strong>{{ contactosExtraidos.length }}</strong> contactos válidos extraídos
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Nombre de la base *</label>
+          <input type="text" 
+                 [(ngModel)]="nombreBase"
+                 class="form-input"
+                 placeholder="Ej: Clientes Enero 2025">
+        </div>
+
+        <div class="form-group">
+          <label>Descripción (opcional)</label>
+          <textarea [(ngModel)]="descripcionBase"
+                    class="form-textarea"
+                    rows="2"
+                    placeholder="Ej: Lista de clientes activos para campaña promocional"></textarea>
+        </div>
+
+        <!-- Preview de contactos extraídos -->
+        <div class="contacts-preview">
+          <h4>Contactos a guardar (primeros 5):</h4>
+          <div class="contacts-list-preview">
+            <div *ngFor="let c of contactosExtraidos.slice(0, 5)" class="contact-preview-item">
+              <span class="contact-phone">📱 {{ formatearTelefono(c.telefono) }}</span>
+              <span class="contact-name" *ngIf="c.nombre">{{ c.nombre }}</span>
+            </div>
+            <div *ngIf="contactosExtraidos.length > 5" class="more-contacts">
+              ... y {{ contactosExtraidos.length - 5 }} más
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" 
+              (click)="guardarBase()"
+              [disabled]="guardando || !nombreBase.trim() || contactosExtraidos.length === 0">
+        <span *ngIf="!guardando">💾 Guardar Base</span>
+        <span *ngIf="guardando"><span class="spinner-sm"></span> Guardando...</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- MODAL: VER BASE                                -->
+<!-- ============================================== -->
+<div *ngIf="showViewModal && baseSeleccionada" class="modal-overlay" (click)="cerrarViewModal()">
+  <div class="modal-content modal-large" (click)="$event.stopPropagation()">
+    
+    <div class="modal-header">
+      <h2>📋 {{ baseSeleccionada.nombre }}</h2>
+      <button class="close-btn" (click)="cerrarViewModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="view-info">
+        <p *ngIf="baseSeleccionada.descripcion">{{ baseSeleccionada.descripcion }}</p>
+        <p class="view-meta">
+          <span>📅 Creada: {{ formatearFecha(baseSeleccionada.createdAt) }}</span>
+          <span>👥 {{ baseSeleccionada.totalContactos }} contactos</span>
+        </p>
+      </div>
+
+      <div class="contacts-table-container">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Teléfono</th>
+              <th>Nombre</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let contacto of baseSeleccionada.contactos; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="phone-cell">{{ formatearTelefono(contacto.telefono) }}</td>
+              <td>{{ contacto.nombre || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cerrarViewModal()">Cerrar</button>
+    </div>
+
+  </div>
+</div>

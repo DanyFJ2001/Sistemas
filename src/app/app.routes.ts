@@ -37,7 +37,10 @@ export const routes: Routes = [
         path: 'difusiones',
         loadComponent: () => import('./pages/difusiones/difusiones.component').then(m => m.DifusionesComponent)
       },
-      
+      {
+        path: 'contactos',
+        loadComponent: () => import('./pages/contactos/contactos.component').then(m => m.BasesContactosComponent)
+      },
      
     ]
   },

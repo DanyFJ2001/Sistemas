@@ -2,31 +2,39 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
+import { ContactosService, BaseContactos, Contacto } from '../../services/contactos.service';
 
-interface Contacto {
-  telefono: string;
-  nombre?: string;
+interface ContactoSeleccionable extends Contacto {
   seleccionado: boolean;
 }
 
 @Component({
   selector: 'app-difusiones',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './difusiones.component.html',
   styleUrl: './difusiones.component.css'
 })
 export class DifusionesComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
   // ========== ESTADO DE CONEXIÓN WHATSAPP ==========
   whatsappConectado = false;
-  qrCodeUrl: string | null = null; // URL o base64 del QR
+  qrCodeUrl: string | null = null;
   estadoConexion: 'desconectado' | 'esperando_qr' | 'escaneando' | 'conectado' = 'desconectado';
   mensajeEstado = 'No conectado';
 
-  // ========== CONTACTOS ==========
-  contactos: Contacto[] = [];
-  contactosFiltrados: Contacto[] = [];
+  // ========== BASES DE CONTACTOS (desde Firebase) ==========
+  basesDisponibles: BaseContactos[] = [];
+  baseSeleccionadaId: string = '';
+  baseSeleccionada: BaseContactos | null = null;
+  cargandoBases = true;
+
+  // ========== CONTACTOS DE LA BASE SELECCIONADA ==========
+  contactos: ContactoSeleccionable[] = [];
+  contactosFiltrados: ContactoSeleccionable[] = [];
   busquedaContacto = '';
   todosSeleccionados = false;
 
@@ -44,15 +52,58 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   // ========== HISTORIAL ==========
   historialEnvios: any[] = [];
 
-  constructor() {}
+  constructor(private contactosService: ContactosService) {}
 
   ngOnInit(): void {
-    // TODO: Inicializar conexión con backend de WhatsApp
+    this.cargarBases();
     this.cargarHistorial();
   }
 
   ngOnDestroy(): void {
-    // TODO: Limpiar conexiones
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ========== CARGAR BASES DESDE FIREBASE ==========
+  cargarBases(): void {
+    this.cargandoBases = true;
+    
+    this.contactosService.getBases()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (bases) => {
+          this.basesDisponibles = bases;
+          this.cargandoBases = false;
+          console.log(`📚 ${bases.length} bases cargadas`);
+        },
+        error: (error) => {
+          console.error('Error cargando bases:', error);
+          this.cargandoBases = false;
+        }
+      });
+  }
+
+  // ========== SELECCIONAR UNA BASE ==========
+  onBaseSeleccionada(): void {
+    if (!this.baseSeleccionadaId) {
+      this.contactos = [];
+      this.contactosFiltrados = [];
+      this.baseSeleccionada = null;
+      return;
+    }
+
+    const base = this.basesDisponibles.find(b => b.id === this.baseSeleccionadaId);
+    if (base) {
+      this.baseSeleccionada = base;
+      // Convertir contactos a seleccionables
+      this.contactos = base.contactos.map(c => ({
+        ...c,
+        seleccionado: false
+      }));
+      this.contactosFiltrados = [...this.contactos];
+      this.todosSeleccionados = false;
+      console.log(`✅ Base "${base.nombre}" cargada con ${base.totalContactos} contactos`);
+    }
   }
 
   // ========== CONEXIÓN WHATSAPP ==========
@@ -88,49 +139,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
     this.qrCodeUrl = null;
   }
 
-  // ========== CARGA DE EXCEL ==========
-
-  onArchivoExcel(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const archivo = input.files?.[0];
-    
-    if (!archivo) return;
-
-    // Validar extensión
-    const extension = archivo.name.split('.').pop()?.toLowerCase();
-    if (!['xlsx', 'xls', 'csv'].includes(extension || '')) {
-      alert('Por favor sube un archivo Excel (.xlsx, .xls) o CSV');
-      return;
-    }
-
-    console.log('📁 Archivo seleccionado:', archivo.name);
-    
-    // TODO: Procesar el archivo Excel
-    // Usar librería como SheetJS (xlsx) para leer el archivo
-    // Detectar automáticamente la columna de teléfonos
-    this.procesarArchivoExcel(archivo);
-  }
-
-  private procesarArchivoExcel(archivo: File): void {
-    // TODO: Implementar lectura real del Excel
-    // Por ahora, datos de prueba
-    console.log('📊 Procesando archivo:', archivo.name);
-    
-    // Simulación de contactos extraídos
-    const contactosPrueba: Contacto[] = [
-      { telefono: '593991234567', nombre: 'Juan Pérez', seleccionado: false },
-      { telefono: '593987654321', nombre: 'María García', seleccionado: false },
-      { telefono: '593912345678', nombre: 'Carlos López', seleccionado: false },
-      { telefono: '593998765432', seleccionado: false },
-      { telefono: '593976543210', nombre: 'Ana Rodríguez', seleccionado: false },
-    ];
-
-    this.contactos = contactosPrueba;
-    this.contactosFiltrados = [...this.contactos];
-    
-    alert(`✅ Se encontraron ${this.contactos.length} contactos en el archivo`);
-  }
-
   // ========== GESTIÓN DE CONTACTOS ==========
 
   filtrarContactos(): void {
@@ -151,20 +159,8 @@ export class DifusionesComponent implements OnInit, OnDestroy {
     this.contactosFiltrados.forEach(c => c.seleccionado = this.todosSeleccionados);
   }
 
-  get contactosSeleccionados(): Contacto[] {
+  get contactosSeleccionados(): ContactoSeleccionable[] {
     return this.contactos.filter(c => c.seleccionado);
-  }
-
-  eliminarContacto(contacto: Contacto): void {
-    this.contactos = this.contactos.filter(c => c.telefono !== contacto.telefono);
-    this.filtrarContactos();
-  }
-
-  limpiarContactos(): void {
-    if (confirm('¿Eliminar todos los contactos?')) {
-      this.contactos = [];
-      this.contactosFiltrados = [];
-    }
   }
 
   // ========== MENSAJE E IMAGEN ==========
@@ -175,7 +171,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
     
     if (!archivo) return;
 
-    // Validar tipo
     if (!archivo.type.startsWith('image/')) {
       alert('Solo se permiten imágenes');
       return;
@@ -183,7 +178,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
 
     this.imagenAdjunta = archivo;
     
-    // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
       this.imagenPreview = e.target?.result as string;
@@ -225,15 +219,14 @@ export class DifusionesComponent implements OnInit, OnDestroy {
 
     // TODO: Implementar envío real
     console.log('📤 Iniciando envío masivo...');
-    console.log('Contactos:', this.contactosSeleccionados);
+    console.log('Base:', this.baseSeleccionada?.nombre);
+    console.log('Contactos:', this.contactosSeleccionados.length);
     console.log('Mensaje:', this.mensajeTexto);
-    console.log('Imagen:', this.imagenAdjunta?.name);
 
     this.simularEnvio();
   }
 
   private simularEnvio(): void {
-    // Simulación de envío - reemplazar con lógica real
     const total = this.contactosSeleccionados.length;
     let enviados = 0;
 
@@ -241,7 +234,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
       enviados++;
       this.progresoEnvio = Math.round((enviados / total) * 100);
       
-      // Simular éxito/fallo aleatorio
       if (Math.random() > 0.1) {
         this.mensajesEnviados++;
       } else {
@@ -258,7 +250,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   }
 
   cancelarEnvio(): void {
-    // TODO: Implementar cancelación real
     this.enviando = false;
     alert('Envío cancelado');
   }
@@ -266,7 +257,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   // ========== HISTORIAL ==========
 
   private cargarHistorial(): void {
-    // TODO: Cargar desde localStorage o backend
     const historialGuardado = localStorage.getItem('historial_difusiones');
     if (historialGuardado) {
       this.historialEnvios = JSON.parse(historialGuardado);
@@ -276,6 +266,7 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   private guardarEnHistorial(): void {
     const registro = {
       fecha: new Date().toISOString(),
+      base: this.baseSeleccionada?.nombre || 'Sin nombre',
       contactos: this.contactosSeleccionados.length,
       enviados: this.mensajesEnviados,
       fallidos: this.mensajesFallidos,
@@ -285,7 +276,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
 
     this.historialEnvios.unshift(registro);
     
-    // Mantener solo últimos 20 registros
     if (this.historialEnvios.length > 20) {
       this.historialEnvios = this.historialEnvios.slice(0, 20);
     }
@@ -303,7 +293,6 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   // ========== UTILIDADES ==========
 
   formatearTelefono(telefono: string): string {
-    // Formato: +593 99 123 4567
     if (telefono.length >= 12) {
       return `+${telefono.slice(0,3)} ${telefono.slice(3,5)} ${telefono.slice(5,8)} ${telefono.slice(8)}`;
     }
