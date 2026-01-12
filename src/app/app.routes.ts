@@ -41,6 +41,10 @@ export const routes: Routes = [
         path: 'contactos',
         loadComponent: () => import('./pages/contactos/contactos.component').then(m => m.BasesContactosComponent)
       },
+      {
+        path: 'factos',
+        loadComponent: () => import('./pages/analytics/analytics.component').then(m => m.AnalyticsComponent)
+      },
      
     ]
   },

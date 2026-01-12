@@ -1,15 +1,16 @@
-// src/app/pages/difusiones/difusiones.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { ContactosService, BaseContactos, Contacto } from '../../services/contactos.service';
+import { WhatsappService } from '../../services/whatsapp.service';
+import { SchedulerService, DifusionProgramada } from '../../services/scheduler.service';
 
 interface ContactoSeleccionable extends Contacto {
   seleccionado: boolean;
 }
-
 
 @Component({
   selector: 'app-difusiones',
@@ -22,16 +23,18 @@ export class DifusionesComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   // ========== VARIABLES PARA MENSAJES ==========
-variablesDisponibles = [
-  { nombre: 'nombre', etiqueta: '{{nombre}}', descripcion: 'Nombre del contacto' },
-  { nombre: 'telefono', etiqueta: '{{telefono}}', descripcion: 'Teléfono' },
-  { nombre: 'fecha', etiqueta: '{{fecha}}', descripcion: 'Fecha actual' }
-];
+  variablesDisponibles = [
+    { nombre: 'nombre', etiqueta: '{{nombre}}', descripcion: 'Nombre del contacto' },
+    { nombre: 'telefono', etiqueta: '{{telefono}}', descripcion: 'Teléfono' },
+    { nombre: 'fecha', etiqueta: '{{fecha}}', descripcion: 'Fecha actual' }
+  ];
+
   // ========== ESTADO DE CONEXIÓN WHATSAPP ==========
   whatsappConectado = false;
   qrCodeUrl: string | null = null;
   estadoConexion: 'desconectado' | 'esperando_qr' | 'escaneando' | 'conectado' = 'desconectado';
   mensajeEstado = 'No conectado';
+  qrImagen: string | null = null;
 
   // ========== BASES DE CONTACTOS (desde Firebase) ==========
   basesDisponibles: BaseContactos[] = [];
@@ -87,19 +90,35 @@ variablesDisponibles = [
   // ========== HISTORIAL ==========
   historialEnvios: any[] = [];
 
-  // ========== PROGRAMACIONES GUARDADAS ==========
-  programacionesActivas: any[] = [];
   // ========== PREVISUALIZACIÓN ==========
-showPreviewModal = false;
-mensajePreview = '';
-contactoPreview: ContactoSeleccionable | null = null;
+  showPreviewModal = false;
+  mensajePreview = '';
+  contactoPreview: ContactoSeleccionable | null = null;
 
-  constructor(private contactosService: ContactosService) {}
+  // ========== PROGRAMACIONES (NUEVAS) ==========
+  programacionesActivas: DifusionProgramada[] = [];
+  programacionesPendientes: DifusionProgramada[] = [];
+  programacionesEjecutadas: DifusionProgramada[] = [];
+  tabProgramaciones: 'pendientes' | 'ejecutadas' = 'pendientes';
+  mostrarNuevaProgramacion = false;
+  
+  // Modal edición de programaciones
+  showEditModal = false;
+  programacionEnEdicion: DifusionProgramada | null = null;
+  nuevaFechaProgramacion = '';
+
+  constructor(
+    private contactosService: ContactosService,
+    private whatsappService: WhatsappService,
+    private schedulerService: SchedulerService
+  ) {}
 
   ngOnInit(): void {
     this.cargarBases();
     this.cargarHistorial();
     this.cargarProgramaciones();
+    this.escucharEventosScheduler();
+    this.verificarEstadoWhatsApp();
   }
 
   ngOnDestroy(): void {
@@ -149,30 +168,25 @@ contactoPreview: ContactoSeleccionable | null = null;
   }
 
   // ========== CONEXIÓN WHATSAPP ==========
-  iniciarConexionWhatsApp(): void {
-    console.log('🔄 Iniciando conexión WhatsApp...');
+  
+  iniciarConexionWhatsApp() {
     this.estadoConexion = 'esperando_qr';
-    this.mensajeEstado = 'Generando código QR...';
-    
+
     setTimeout(() => {
-      this.estadoConexion = 'escaneando';
-      this.mensajeEstado = 'Escanea el código QR con WhatsApp';
-    }, 1000);
+      this.whatsappService.obtenerQR().subscribe({
+        next: res => {
+          this.qrImagen = res.qr;
+          this.estadoConexion = 'escaneando';
+        }
+      });
+    }, 800);
   }
 
-  desconectarWhatsApp(): void {
-    console.log('🔌 Desconectando WhatsApp...');
-    this.whatsappConectado = false;
-    this.estadoConexion = 'desconectado';
-    this.mensajeEstado = 'Desconectado';
-    this.qrCodeUrl = null;
-  }
-
-  simularConexionExitosa(): void {
-    this.whatsappConectado = true;
-    this.estadoConexion = 'conectado';
-    this.mensajeEstado = 'Conectado correctamente';
-    this.qrCodeUrl = null;
+  verEstado() {
+    this.whatsappService.obtenerEstado().subscribe(res => {
+      this.whatsappConectado = res.isReady;
+      if (this.whatsappConectado) this.qrImagen = null;
+    });
   }
 
   // ========== GESTIÓN DE CONTACTOS ==========
@@ -191,7 +205,7 @@ contactoPreview: ContactoSeleccionable | null = null;
 
   toggleSeleccionTodos(): void {
     this.todosSeleccionados = !this.todosSeleccionados;
-    this.contactosFiltrados.forEach(c => c.seleccionado = this.todosSeleccionados);
+    this.contactosFiltrados.forEach((c: any) => c.seleccionado = this.todosSeleccionados);
   }
 
   get contactosSeleccionados(): ContactoSeleccionable[] {
@@ -199,6 +213,8 @@ contactoPreview: ContactoSeleccionable | null = null;
   }
 
   // ========== MENSAJE E IMAGEN ==========
+  imagenBase64String: string | null = null;  // NUEVA: guardar imagen en base64
+
   onImagenSeleccionada(event: Event): void {
     const input = event.target as HTMLInputElement;
     const archivo = input.files?.[0];
@@ -212,9 +228,17 @@ contactoPreview: ContactoSeleccionable | null = null;
 
     this.imagenAdjunta = archivo;
     
+    // Convertir INMEDIATAMENTE a base64
     const reader = new FileReader();
     reader.onload = (e) => {
-      this.imagenPreview = e.target?.result as string;
+      const base64 = e.target?.result as string;
+      this.imagenBase64String = base64;  // Guardar aquí
+      this.imagenPreview = base64;        // Mostrar preview
+      console.log('✅ Imagen convertida a base64:', base64.substring(0, 50) + '...');
+    };
+    reader.onerror = () => {
+      alert('Error al leer la imagen');
+      console.error('❌ Error FileReader:', reader.error);
     };
     reader.readAsDataURL(archivo);
   }
@@ -222,6 +246,7 @@ contactoPreview: ContactoSeleccionable | null = null;
   eliminarImagen(): void {
     this.imagenAdjunta = null;
     this.imagenPreview = null;
+    this.imagenBase64String = null;
   }
 
   // ========== VARIABLES EN MENSAJE ==========
@@ -239,14 +264,9 @@ contactoPreview: ContactoSeleccionable | null = null;
     this.generandoIA = true;
 
     try {
-      // Construir el prompt para la IA
       const prompt = this.construirPromptIA();
       
-      // TODO: Reemplazar con tu llamada real a la API de IA
-      // const response = await this.iaService.generarMensaje(prompt);
-      // this.mensajeTexto = response.mensaje;
-
-      // Simulación temporal
+      // TODO: Reemplazar con llamada real a la API
       await this.simularGeneracionIA();
       
       console.log('✨ Mensaje generado con IA');
@@ -260,7 +280,7 @@ contactoPreview: ContactoSeleccionable | null = null;
 
   private construirPromptIA(): string {
     return `
-Genera un mensaje de WhatsApp para difusión masiva con las siguientes características:
+Genera un mensaje de WhatsApp para difusión masiva (publicidad general, SIN personalización) con las siguientes características:
 
 CONTEXTO DEL NEGOCIO:
 ${this.contextoNegocio}
@@ -277,23 +297,23 @@ ${this.instruccionesIA || 'Ninguna'}
 REQUISITOS:
 - Máximo 500 caracteres
 - Incluir emoji relevantes pero sin exceso
-- Si es posible, usar la variable {{nombre}} para personalizar
+- Dirigido al público en general, SIN variables ni personalizaciones
 - Incluir llamado a la acción claro
 - Formato adecuado para WhatsApp (sin HTML)
+- Directo y profesional
     `.trim();
   }
 
   private async simularGeneracionIA(): Promise<void> {
-    // Simulación - eliminar cuando conectes la API real
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     const mensajesEjemplo: { [key: string]: string } = {
-      'promocion': '¡Hola {{nombre}}! 🎉\n\nTenemos una promoción especial para ti. Por tiempo limitado, obtén un 20% de descuento en todos nuestros servicios.\n\n📅 Válido hasta fin de mes\n📞 Agenda tu cita ahora\n\n¡Te esperamos!',
-      'recordatorio': '¡Hola {{nombre}}! 📋\n\nTe recordamos que tienes una cita programada con nosotros.\n\n⏰ Por favor confirma tu asistencia respondiendo este mensaje.\n\n¡Te esperamos!',
-      'informativo': '¡Hola {{nombre}}! 📢\n\nQueremos informarte sobre nuestros nuevos servicios disponibles.\n\nVisita nuestras instalaciones o contáctanos para más información.\n\n¡Estamos para servirte!',
-      'seguimiento': '¡Hola {{nombre}}! 👋\n\n¿Cómo te fue con nuestro servicio? Tu opinión es muy importante para nosotros.\n\n⭐ Cuéntanos tu experiencia\n\n¡Gracias por confiar en nosotros!',
-      'bienvenida': '¡Bienvenido/a {{nombre}}! 🙌\n\nNos alegra tenerte con nosotros. Estamos aquí para ayudarte en lo que necesites.\n\n📱 Guarda este número para futuras consultas\n\n¡Gracias por elegirnos!',
-      'encuesta': '¡Hola {{nombre}}! 📊\n\nQueremos mejorar para ti. ¿Podrías dedicarnos 2 minutos para responder una breve encuesta?\n\n👉 Tu opinión cuenta\n\n¡Gracias por tu tiempo!'
+      'promocion': '🎉 ¡Oferta especial para ti!\n\nDisfruta de un 20% de descuento en todos nuestros servicios.\n\n📅 Válido hasta fin de mes\n📞 Agenda tu cita ahora\n\n¡Te esperamos!',
+      'recordatorio': '📋 Recordatorio importante\n\nTe invitamos a visitarnos para tu próxima consulta.\n\n⏰ Contáctanos para agendar\n\n¡Estamos aquí para ti!',
+      'informativo': '📢 ¡Conoce nuestros servicios!\n\nOfrecemos soluciones de calidad para tu bienestar.\n\nVisita nuestras instalaciones o contáctanos para más información.\n\n¡Estamos para servirte!',
+      'seguimiento': '👋 ¿Cómo estuvo tu experiencia?\n\nTu opinión es muy importante para nosotros.\n\n⭐ Cuéntanos tu experiencia\n\n¡Gracias por confiar en nosotros!',
+      'bienvenida': '🙌 ¡Bienvenido!\n\nNos alegra tenerte con nosotros. Estamos aquí para ayudarte en lo que necesites.\n\n📱 Guarda nuestro número\n\n¡Gracias por elegirnos!',
+      'encuesta': '📊 Ayúdanos a mejorar\n\nQueremos conocer tu opinión. ¿Podrías responder una breve encuesta?\n\n👉 Tu voz cuenta\n\n¡Gracias por tu tiempo!'
     };
 
     this.mensajeTexto = mensajesEjemplo[this.objetivoMensaje] || mensajesEjemplo['informativo'];
@@ -308,10 +328,6 @@ REQUISITOS:
     this.generandoIA = true;
 
     try {
-      // TODO: Llamar a la API para generar variantes
-      // const variantes = await this.iaService.generarVariantes(this.mensajeTexto);
-      
-      // Por ahora mostrar alerta
       await new Promise(resolve => setTimeout(resolve, 1500));
       alert('🔄 Funcionalidad de variantes próximamente.\n\nAquí se mostrarán 3 variantes del mensaje para que elijas la mejor.');
       
@@ -364,30 +380,30 @@ REQUISITOS:
   }
 
   // ========== PREVISUALIZACIÓN ==========
- previsualizarMensaje(): void {
-  if (!this.mensajeTexto) {
-    alert('Escribe un mensaje primero');
-    return;
+  previsualizarMensaje(): void {
+    if (!this.mensajeTexto) {
+      alert('Escribe un mensaje primero');
+      return;
+    }
+
+    // Para previsualización, no reemplazamos variables (son mensajes públicos)
+    this.mensajePreview = this.mensajeTexto;
+    this.contactoPreview = { 
+      nombre: 'Destinatario', 
+      telefono: '593999999999',
+      seleccionado: true 
+    };
+    
+    this.showPreviewModal = true;
   }
 
-  // Tomar el primer contacto seleccionado o uno de ejemplo
-  this.contactoPreview = this.contactosSeleccionados[0] || { 
-    nombre: 'Cliente Ejemplo', 
-    telefono: '593999999999',
-    seleccionado: true 
-  };
-  
-  this.mensajePreview = this.reemplazarVariables(this.mensajeTexto, this.contactoPreview);
-  this.showPreviewModal = true;
-}
+  cerrarPreviewModal(): void {
+    this.showPreviewModal = false;
+  }
 
-cerrarPreviewModal(): void {
-  this.showPreviewModal = false;
-}
-
-getHoraActual(): string {
-  return new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
-}
+  getHoraActual(): string {
+    return new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+  }
 
   private reemplazarVariables(mensaje: string, contacto: any): string {
     return mensaje
@@ -413,20 +429,13 @@ getHoraActual(): string {
       return;
     }
 
-    // Validar horarios si está programado
     if (this.programarEnvio && !this.validarHorarios()) {
       return;
     }
 
-    // Si es programado para después, guardar la programación
+    // Si es programado para después, guardar en backend
     if (this.programarEnvio && this.tipoProgramacion !== 'ahora') {
-      this.guardarProgramacion();
-      return;
-    }
-
-    // Verificar horario permitido
-    if (this.programarEnvio && !this.estaEnHorarioPermitido()) {
-      alert(`⚠️ Fuera de horario permitido.\nHorario configurado: ${this.horaInicio} - ${this.horaFin}`);
+      this.guardarProgramacionEnBackend();
       return;
     }
 
@@ -434,10 +443,54 @@ getHoraActual(): string {
       return;
     }
 
-    this.ejecutarEnvio();
+    this.ejecutarEnvioInmediato();
   }
 
-  private ejecutarEnvio(): void {
+  private guardarProgramacionEnBackend(): void {
+    if (!this.baseSeleccionada) {
+      alert('Selecciona una base de contactos');
+      return;
+    }
+
+    const fecha = new Date(`${this.fechaEnvio}T${this.horaInicio}`);
+    
+    const datos = {
+      name: `Difusión ${this.baseSeleccionada.nombre} - ${this.fechaEnvio} ${this.horaInicio}`,
+      contacts: this.contactosSeleccionados.map(c => c.telefono),
+      message: this.mensajeTexto,
+      scheduledFor: fecha.toISOString(),
+      useVariations: true,
+      variationsCount: 5
+    };
+
+    this.enviando = true;
+
+    this.schedulerService.crearDifusionProgramada(datos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          if (response.success) {
+            alert(`✅ Difusión programada para ${this.schedulerService.formatearFechaProgramada(datos.scheduledFor)}`);
+            this.resetearFormulario();
+            this.cargarProgramaciones();
+          }
+        },
+        error: (error) => {
+          console.error('Error guardando programación:', error);
+          alert('Error al programar la difusión. Intenta de nuevo.');
+        },
+        complete: () => {
+          this.enviando = false;
+        }
+      });
+  }
+
+  private ejecutarEnvioInmediato(): void {
+    if (!this.baseSeleccionada) {
+      alert('Selecciona una base de contactos');
+      return;
+    }
+
     this.enviando = true;
     this.cancelarEnvioFlag = false;
     this.progresoEnvio = 0;
@@ -445,67 +498,47 @@ getHoraActual(): string {
     this.mensajesFallidos = 0;
     this.enviosPendientes = this.contactosSeleccionados.length;
 
-    console.log('📤 Iniciando envío masivo...');
-    console.log('Base:', this.baseSeleccionada?.nombre);
-    console.log('Contactos:', this.contactosSeleccionados.length);
-    console.log('Intervalo:', this.intervaloSegundos, 'segundos');
+    const datos: any = {
+      name: `Difusión Inmediata - ${this.baseSeleccionada.nombre}`,
+      contacts: this.contactosSeleccionados.map(c => c.telefono),
+      message: this.mensajeTexto,
+      useVariations: true,
+      variationsCount: 5
+    };
 
-    this.enviarMensajesSecuencial();
-  }
+    // Agregar imagen si existe y está convertida a base64
+    if (this.imagenBase64String) {
+      datos.imagenBase64 = this.imagenBase64String;
+      console.log('📷 Imagen incluida en broadcast:', this.imagenBase64String.substring(0, 50) + '...');
+    } else {
+      console.log('📝 Sin imagen, solo texto');
+    }
 
-  private async enviarMensajesSecuencial(): Promise<void> {
-    const contactos = [...this.contactosSeleccionados];
-    const total = contactos.length;
-
-    for (let i = 0; i < contactos.length; i++) {
-      if (this.cancelarEnvioFlag) {
-        console.log('⛔ Envío cancelado por el usuario');
-        break;
-      }
-
-      const contacto = contactos[i];
-      const mensajePersonalizado = this.reemplazarVariables(this.mensajeTexto, contacto);
-
-      try {
-        // TODO: Llamar al backend real para enviar el mensaje
-        // await this.whatsappService.enviarMensaje(contacto.telefono, mensajePersonalizado, this.imagenAdjunta);
-        
-        // Simulación
-        await this.simularEnvioIndividual();
-        
-        if (Math.random() > 0.1) {
-          this.mensajesEnviados++;
-        } else {
-          this.mensajesFallidos++;
+    this.whatsappService.iniciarBroadcast(datos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          console.log('📤 Broadcast iniciado:', response);
+        },
+        error: (error) => {
+          console.error('Error iniciando broadcast:', error);
+          alert('Error al enviar. Intenta de nuevo.');
+          this.enviando = false;
         }
-      } catch (error) {
-        console.error(`Error enviando a ${contacto.telefono}:`, error);
-        this.mensajesFallidos++;
-      }
-
-      this.progresoEnvio = Math.round(((i + 1) / total) * 100);
-      this.enviosPendientes = total - (i + 1);
-
-      // Esperar el intervalo entre mensajes (excepto el último)
-      if (i < contactos.length - 1 && !this.cancelarEnvioFlag) {
-        await this.esperar(this.intervaloSegundos * 1000);
-      }
-    }
-
-    this.enviando = false;
-    this.guardarEnHistorial();
-    
-    if (!this.cancelarEnvioFlag) {
-      alert(`✅ Envío completado!\n\n✅ Enviados: ${this.mensajesEnviados}\n❌ Fallidos: ${this.mensajesFallidos}`);
-    }
+      });
   }
 
-  private simularEnvioIndividual(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 300));
-  }
-
-  private esperar(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  private actualizarProgresoEnvio(progreso: any): void {
+    if (progreso.phase === 'sending') {
+      this.progresoEnvio = progreso.percent || 0;
+      this.mensajesEnviados = progreso.sent || 0;
+      this.mensajesFallidos = progreso.failed || 0;
+    } else if (progreso.phase === 'completed') {
+      this.enviando = false;
+      this.progresoEnvio = 100;
+      alert(`✅ Envío completado!\n\n✅ Enviados: ${progreso.sent}\n❌ Fallidos: ${progreso.failed}`);
+      this.guardarEnHistorial();
+    }
   }
 
   cancelarEnvio(): void {
@@ -513,55 +546,169 @@ getHoraActual(): string {
     alert('⛔ Cancelando envío...\nEspera a que termine el mensaje actual.');
   }
 
-  // ========== PROGRAMACIONES ==========
-  private guardarProgramacion(): void {
-    const programacion = {
-      id: Date.now().toString(),
-      fechaCreacion: new Date().toISOString(),
-      tipo: this.tipoProgramacion,
-      fechaEnvio: this.fechaEnvio,
-      horaInicio: this.horaInicio,
-      horaFin: this.horaFin,
-      intervalo: this.intervaloSegundos,
-      diasSemana: this.tipoProgramacion === 'recurrente' 
-        ? this.diasSemana.filter(d => d.activo).map(d => d.valor) 
-        : [],
-      base: {
-        id: this.baseSeleccionada?.id,
-        nombre: this.baseSeleccionada?.nombre
-      },
-      contactosIds: this.contactosSeleccionados.map(c => c.telefono),
-      totalContactos: this.contactosSeleccionados.length,
-      mensaje: this.mensajeTexto,
-      conImagen: !!this.imagenAdjunta,
-      estado: 'activa'
-    };
-
-    this.programacionesActivas.push(programacion);
-    localStorage.setItem('programaciones_difusion', JSON.stringify(this.programacionesActivas));
-
-    const tipoTexto = this.tipoProgramacion === 'programado' 
-      ? `para el ${this.fechaEnvio}` 
-      : `recurrente (${this.getDiasActivos()})`;
-
-    alert(`✅ Programación guardada ${tipoTexto}\n\nHorario: ${this.horaInicio} - ${this.horaFin}\nContactos: ${this.contactosSeleccionados.length}`);
-  }
+  // ========== PROGRAMACIONES - NUEVOS MÉTODOS ==========
 
   private cargarProgramaciones(): void {
-    const guardadas = localStorage.getItem('programaciones_difusion');
-    if (guardadas) {
-      this.programacionesActivas = JSON.parse(guardadas);
+    this.schedulerService.cargarPendientes();
+    this.schedulerService.cargarEjecutadas();
+    this.schedulerService.cargarStats();
+
+    this.schedulerService.pendientes$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(pendientes => {
+        this.programacionesPendientes = pendientes;
+        this.mostrarNuevaProgramacion = pendientes.length > 0;
+      });
+
+    this.schedulerService.ejecutadas$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(ejecutadas => {
+        this.programacionesEjecutadas = ejecutadas;
+      });
+  }
+
+  private escucharEventosScheduler(): void {
+    this.schedulerService.progress$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(progress => {
+        if (progress) {
+          if (progress.phase === 'executing_scheduled') {
+            console.log('🚀 Ejecutando difusión programada:', progress.message);
+          } else if (progress.phase === 'scheduled_executed') {
+            console.log('✅ Difusión ejecutada');
+            this.cargarProgramaciones();
+          } else if (progress.phase === 'scheduled_failed') {
+            console.error('❌ Error en difusión:', progress.error);
+          }
+        }
+      });
+  }
+
+  editarProgramacion(prog: DifusionProgramada): void {
+    this.programacionEnEdicion = { ...prog };
+    const fecha = new Date(prog.scheduledFor);
+    this.nuevaFechaProgramacion = fecha.toISOString().slice(0, 16);
+    this.showEditModal = true;
+  }
+
+  guardarEditProgramacion(): void {
+    if (!this.programacionEnEdicion || !this.nuevaFechaProgramacion) {
+      alert('Completa todos los campos');
+      return;
     }
+
+    const fecha = new Date(this.nuevaFechaProgramacion);
+    
+    this.schedulerService.actualizar(this.programacionEnEdicion.id, {
+      ...this.programacionEnEdicion,
+      scheduledFor: fecha.toISOString()
+    }).pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: () => {
+        alert('✅ Programación actualizada');
+        this.cerrarEditModal();
+        this.cargarProgramaciones();
+      },
+      error: (error) => {
+        console.error('Error actualizando:', error);
+        alert('Error al actualizar. Intenta de nuevo.');
+      }
+    });
+  }
+
+  cancelarProgramacion(id: string): void {
+    if (!confirm('¿Cancelar esta programación?')) return;
+
+    this.schedulerService.cancelar(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          alert('✅ Programación cancelada');
+          this.cargarProgramaciones();
+        },
+        error: (error) => {
+          console.error('Error cancelando:', error);
+          alert('Error al cancelar. Intenta de nuevo.');
+        }
+      });
   }
 
   eliminarProgramacion(id: string): void {
-    if (!confirm('¿Eliminar esta programación?')) return;
-    
-    this.programacionesActivas = this.programacionesActivas.filter(p => p.id !== id);
-    localStorage.setItem('programaciones_difusion', JSON.stringify(this.programacionesActivas));
+    if (!confirm('¿Eliminar del historial?')) return;
+    this.programacionesEjecutadas = this.programacionesEjecutadas.filter(p => p.id !== id);
+  }
+
+  cerrarEditModal(): void {
+    this.showEditModal = false;
+    this.programacionEnEdicion = null;
+    this.nuevaFechaProgramacion = '';
+  }
+
+  getMinDateTime(): string {
+    const ahora = new Date();
+    return ahora.toISOString().slice(0, 16);
+  }
+
+  getTiempoRestante(fechaISO: string): string {
+    return this.schedulerService.getTiempoRestante(fechaISO);
+  }
+
+  estaProxima(fechaISO: string): boolean {
+    return this.schedulerService.estaProxima(fechaISO);
+  }
+
+  formatearFechaProgramada(fechaISO: string): string {
+    return this.schedulerService.formatearFechaProgramada(fechaISO);
+  }
+
+  private resetearFormulario(): void {
+    this.mensajeTexto = '';
+    this.imagenAdjunta = null;
+    this.imagenPreview = null;
+    this.programarEnvio = false;
+    this.fechaEnvio = '';
+    this.horaInicio = '08:00';
+    this.horaFin = '18:00';
+    this.contactos.forEach(c => c.seleccionado = false);
+    this.todosSeleccionados = false;
+  }
+
+  private verificarEstadoWhatsApp(): void {
+    this.whatsappService.estado$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(estado => {
+        this.estadoConexion = estado as any;
+        this.whatsappConectado = estado === 'conectado';
+        this.actualizarMensajeEstado(estado);
+      });
+
+    this.whatsappService.qr$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(qr => {
+        this.qrImagen = qr;
+      });
+
+    this.whatsappService.progreso$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(progreso => {
+        if (progreso) {
+          this.actualizarProgresoEnvio(progreso);
+        }
+      });
+  }
+
+  private actualizarMensajeEstado(estado: string): void {
+    const mensajes: { [key: string]: string } = {
+      'desconectado': 'No conectado',
+      'qr_ready': 'Escanea el QR',
+      'autenticando': 'Autenticando...',
+      'conectado': '✅ Conectado'
+    };
+    this.mensajeEstado = mensajes[estado] || 'Estado desconocido';
   }
 
   // ========== HISTORIAL ==========
+  
   private cargarHistorial(): void {
     const historialGuardado = localStorage.getItem('historial_difusiones');
     if (historialGuardado) {
@@ -599,6 +746,7 @@ getHoraActual(): string {
   }
 
   // ========== UTILIDADES ==========
+  
   formatearTelefono(telefono: string): string {
     if (telefono.length >= 12) {
       return `+${telefono.slice(0,3)} ${telefono.slice(3,5)} ${telefono.slice(5,8)} ${telefono.slice(8)}`;

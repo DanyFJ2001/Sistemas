@@ -1,0 +1,188 @@
+<!-- src/app/pages/analytics/analytics.component.html -->
+<div class="analytics-container">
+  
+  <!-- Header Principal -->
+  <div class="main-header">
+    <h1>📊 Panel de Análisis</h1>
+    <p class="subtitle">Estadísticas y Leads Interesados</p>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="cargando" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div *ngIf="!cargando" class="content-wrapper">
+
+    <!-- SECCIÓN 1: ESTADÍSTICAS RÁPIDAS -->
+    <section class="stats-section">
+      <h2>📈 Estadísticas Generales</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-box campaigns">
+          <div class="icon">📢</div>
+          <div class="content">
+            <div class="label">Campañas</div>
+            <div class="value">{{ stats.broadcasts }}</div>
+          </div>
+        </div>
+
+        <div class="stat-box sent">
+          <div class="icon">✅</div>
+          <div class="content">
+            <div class="label">Enviados</div>
+            <div class="value">{{ stats.sent | number }}</div>
+          </div>
+        </div>
+
+        <div class="stat-box failed">
+          <div class="icon">❌</div>
+          <div class="content">
+            <div class="label">Fallidos</div>
+            <div class="value">{{ stats.failed | number }}</div>
+          </div>
+        </div>
+
+        <div class="stat-box success">
+          <div class="icon">🎯</div>
+          <div class="content">
+            <div class="label">Tasa Éxito</div>
+            <div class="value">{{ getSuccessRate() }}%</div>
+          </div>
+        </div>
+
+        <div class="stat-box responses">
+          <div class="icon">💬</div>
+          <div class="content">
+            <div class="label">Respuestas</div>
+            <div class="value">{{ stats.responses | number }}</div>
+          </div>
+        </div>
+
+        <div class="stat-box interested">
+          <div class="icon">👥</div>
+          <div class="content">
+            <div class="label">Interesados</div>
+            <div class="value">{{ stats.interested }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tasa de Respuesta -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Tasa de Respuesta</div>
+          <div class="metric-value">{{ stats.responseRate }}%</div>
+          <div class="progress-bar">
+            <div class="progress-fill response" [style.width]="getResponsePercentage() + '%'"></div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Tasa de Interés</div>
+          <div class="metric-value">{{ stats.interestRate }}%</div>
+          <div class="progress-bar">
+            <div class="progress-fill interest" [style.width]="getInterestPercentage() + '%'"></div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">No Interesados</div>
+          <div class="metric-value">{{ getNegativePercentage() }}%</div>
+          <div class="progress-bar">
+            <div class="progress-fill negative" [style.width]="getNegativePercentage() + '%'"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: LEADS INTERESADOS -->
+    <section class="leads-section">
+      <div class="leads-header">
+        <h2>👥 Leads Interesados</h2>
+        <span class="total-badge">Total: {{ totalLeads }}</span>
+      </div>
+
+      <!-- Filtros y Búsqueda -->
+      <div class="filters-row">
+        <div class="filter-buttons">
+          <button 
+            [class.active]="filtro === 'todos'"
+            (click)="onFiltroChange('todos')"
+            class="filter-btn">
+            📋 Todos ({{ leads.length }})
+          </button>
+          <button 
+            [class.active]="filtro === 'pendientes'"
+            (click)="onFiltroChange('pendientes')"
+            class="filter-btn">
+            ⏳ Pendientes ({{ leadsPendientes }})
+          </button>
+          <button 
+            [class.active]="filtro === 'respondidos'"
+            (click)="onFiltroChange('respondidos')"
+            class="filter-btn">
+            ✅ Respondidos ({{ leadsRespondidos }})
+          </button>
+        </div>
+
+        <div class="search-box">
+          <input 
+            type="text" 
+            placeholder="🔍 Buscar por teléfono, mensaje..."
+            [(ngModel)]="busqueda"
+            (ngModelChange)="onBusquedaChange($event)"
+            class="search-input">
+        </div>
+      </div>
+
+      <!-- Lista de Leads -->
+      <div class="leads-list">
+        <div *ngIf="filteredLeads.length === 0" class="no-data">
+          <p>😅 No hay leads que coincidan</p>
+        </div>
+
+        <div *ngFor="let lead of filteredLeads" class="lead-item">
+          <div class="lead-left">
+            <div class="phone">📱 {{ lead.from }}</div>
+            <div class="keyword" [style.backgroundColor]="obtenerColorKeyword(lead.matchedKeyword)">
+              {{ lead.matchedKeyword }}
+            </div>
+          </div>
+
+          <div class="lead-center">
+            <div class="message">"{{ lead.body }}"</div>
+            <div class="meta">
+              <span class="campaign">{{ lead.broadcastName }}</span>
+              <span class="date">{{ formatearFecha(lead.timestamp) }}</span>
+            </div>
+          </div>
+
+          <div class="lead-status">
+            <span *ngIf="lead.replied" class="status-badge replied">✅ Contactado</span>
+            <span *ngIf="!lead.replied" class="status-badge pending">⏳ Pendiente</span>
+          </div>
+
+          <div class="lead-actions">
+            <button (click)="copiarNumero(lead.from)" class="btn-action copy" title="Copiar">
+              📋
+            </button>
+            <a [href]="'https://wa.me/' + lead.from" target="_blank" class="btn-action whatsapp" title="WhatsApp">
+              💬
+            </a>
+            <button 
+              *ngIf="!lead.replied"
+              (click)="marcarComoRespondido(lead.id)" 
+              class="btn-action mark"
+              title="Contactado">
+              ✔️
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</div>
