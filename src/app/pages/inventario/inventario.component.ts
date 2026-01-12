@@ -63,7 +63,7 @@ export class InventarioComponent implements OnInit, OnDestroy {
   equipmentList: Equipment[] = [];
   filteredEquipment: Equipment[] = [];
 
-  categories = ['EQUIPOS DE COMPUTO Y ELECTRONICOS', 'EQUIPOS MEDICOS', 'MUEBLES Y ENSERES'];
+  categories = ['EQUIPOS DE COMPUTO Y ELECTRONICOS', 'EQUIPOS MEDICOS', 'MUEBLES Y ENSERES','LABORATORIO'];
 
   private categoryCodeMap: { [key: string]: string } = {
     'EQUIPOS DE COMPUTO Y ELECTRONICOS': 'EC',
