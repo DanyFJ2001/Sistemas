@@ -71,12 +71,12 @@ export class InventarioComponent implements OnInit, OnDestroy {
     'MUEBLES Y ENSERES': 'ME'
   };
 
-  sucursales = ['CALDERON', 'CAMION', 'CARAPUNGO', 'COCA', 'ECOGRAFIAS', 'JIPIJAPA', 'LABORATORIO', 'MICHELENA', 'NACIONES UNIDAS', 'PRADERAS', 'LAGO AGRIO'];
+  sucursales = ['CALDERON', 'CAMION', 'CARAPUNGO', 'COCA', 'ECOGRAFIAS', 'JIPIJAPA', 'LABORATORIO', 'MICHELENA', 'NACIONES UNIDAS', 'PRADERAS', 'LAGO AGRIO','LAS NAVES'];
 
   private sucursalCodeMap: { [key: string]: string } = {
     'CALDERON': 'CA', 'CAMION': 'CM', 'CARAPUNGO': 'CP', 'COCA': 'CO', 'ECOGRAFIAS': 'EG',
     'JIPIJAPA': 'JP', 'LABORATORIO': 'LA', 'MICHELENA': 'MI', 'NACIONES UNIDAS': 'NU',
-    'PRADERAS': 'PR', 'LAGO AGRIO': 'LG'
+    'PRADERAS': 'PR', 'LAGO AGRIO': 'LG', 'LAS NAVES': 'LN'
   };
 
   private sucursalColorMap: { [key: string]: string } = {
