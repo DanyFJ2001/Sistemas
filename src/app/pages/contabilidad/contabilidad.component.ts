@@ -644,66 +644,128 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
   // ========== IMPRESIÓN DE CÓDIGOS ==========
 
-  imprimirCodigosBarras(): void {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+imprimirCodigosBarras(): void {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
 
-    let html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Códigos de Barras</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; }
-          .container { display: flex; flex-wrap: wrap; padding: 10px; }
-          .barcode-item {
-            width: 48%;
-            margin: 1%;
-            padding: 15px;
-            border: 1px solid #ddd;
-            text-align: center;
-            page-break-inside: avoid;
-          }
-          .barcode-item img { max-width: 100%; height: auto; }
-          .product-name {
-            font-size: 11px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          @media print {
-            .barcode-item { border: 1px solid #000; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-    `;
+  // Configuración para etiquetas Zebra 6cm x 3.5cm
+  const etiquetaAncho = 60; // mm
+  const etiquetaAlto = 35;  // mm
 
-    this.productos.forEach(p => {
-      if (p.barcodeDataUrl) {
-        html += `
-          <div class="barcode-item">
-            <div class="product-name">${p.referencia || p.producto}</div>
-            <img src="${p.barcodeDataUrl}" alt="${p.codigo}">
-          </div>
-        `;
-      }
-    });
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Códigos de Barras - SEGURILAB</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @page {
+          size: ${etiquetaAncho}mm ${etiquetaAlto}mm;
+          margin: 0;
+        }
+        
+        body { 
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        
+        .etiqueta {
+          width: ${etiquetaAncho}mm;
+          height: ${etiquetaAlto}mm;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 2mm 4mm;
+          page-break-after: always;
+          box-sizing: border-box;
+        }
+        
+        .etiqueta:last-child {
+          page-break-after: auto;
+        }
+        
+        .barcode-item {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+        
+        .barcode-item img { 
+          max-width: 90%;
+          max-height: 24mm;
+          height: auto;
+          object-fit: contain;
+        }
+        
+        .product-name {
+          font-size: 8pt;
+          font-weight: bold;
+          margin-bottom: 2mm;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 100%;
+        }
+        
+        .product-code {
+          font-size: 7pt;
+          margin-top: 1mm;
+        }
+        
+        @media print {
+          body { -webkit-print-color-adjust: exact; }
+          .etiqueta { border: none; }
+        }
+        
+        /* Vista previa en pantalla */
+        @media screen {
+          body { 
+            background: #f0f0f0; 
+            padding: 10mm;
+          }
+          .etiqueta { 
+            border: 1px dashed #999;
+            background: white;
+            margin-bottom: 5mm;
+          }
+        }
+      </style>
+    </head>
+    <body>
+  `;
 
+  // Filtrar productos con código de barras
+  const productosConBarcode = this.productos.filter(p => p.barcodeDataUrl);
+  
+  // 1 código por etiqueta
+  productosConBarcode.forEach(p => {
     html += `
+      <div class="etiqueta">
+        <div class="barcode-item">
+          <div class="product-name">${p.referencia || p.producto}</div>
+          <img src="${p.barcodeDataUrl}" alt="${p.codigo}">
+          <div class="product-code">${p.codigo}</div>
         </div>
-      </body>
-      </html>
+      </div>
     `;
+  });
 
-    printWindow.document.write(html);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-  }
+  html += `
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 500);
+}
 
   // ========== UTILIDADES ==========
 
