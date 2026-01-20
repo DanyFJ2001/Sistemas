@@ -45,6 +45,9 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private database: any;
 
+  // Para usar Math en el template
+  Math = Math;
+
   productos: Producto[] = [];
   productosFiltrados: Producto[] = [];
   
@@ -68,6 +71,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   showCantidadModal = false;
   productoSeleccionado: Producto | null = null;
   cantidadIngresada: number = 1;
+  operacionModal: 'sumar' | 'restar' = 'sumar'; // NUEVO: Tipo de operación
 
   // Modal de código de barras
   showBarcodeModal = false;
@@ -447,6 +451,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       this.playSuccessSound();
       this.productoSeleccionado = producto;
       this.cantidadIngresada = 1;
+      this.operacionModal = 'sumar'; // Por defecto sumar al escanear
       this.showCantidadModal = true;
       this.highlightProduct(producto.id);
     } else {
@@ -457,25 +462,64 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
   // ========== MODAL DE CANTIDAD ==========
 
+  // NUEVO: Método para cambiar la operación
+  setOperacion(op: 'sumar' | 'restar'): void {
+    this.operacionModal = op;
+    // Ajustar cantidad sugerida según la operación
+    if (op === 'sumar' && this.productoSeleccionado) {
+      this.cantidadIngresada = Math.min(1, this.productoSeleccionado.cantidad - this.productoSeleccionado.cantidadPistoleada);
+      if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
+    } else if (op === 'restar' && this.productoSeleccionado) {
+      this.cantidadIngresada = Math.min(1, this.productoSeleccionado.cantidadPistoleada);
+      if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
+    }
+  }
+
+  // NUEVO: Calcular el resultado previo
+  calcularResultado(): number {
+    if (!this.productoSeleccionado) return 0;
+    
+    if (this.operacionModal === 'sumar') {
+      return this.productoSeleccionado.cantidadPistoleada + this.cantidadIngresada;
+    } else {
+      return Math.max(0, this.productoSeleccionado.cantidadPistoleada - this.cantidadIngresada);
+    }
+  }
+
   async confirmarCantidad(): Promise<void> {
     if (!this.productoSeleccionado) return;
 
     const cantidad = this.cantidadIngresada || 1;
-    this.productoSeleccionado.cantidadPistoleada += cantidad;
+    
+    // MODIFICADO: Aplicar operación según el tipo seleccionado
+    if (this.operacionModal === 'sumar') {
+      this.productoSeleccionado.cantidadPistoleada += cantidad;
+    } else {
+      // Restar - asegurar que no quede negativo
+      this.productoSeleccionado.cantidadPistoleada = Math.max(0, this.productoSeleccionado.cantidadPistoleada - cantidad);
+    }
+    
     this.productoSeleccionado.fechaPistoleado = new Date().toISOString();
 
-    // Actualizar estado
+    // Actualizar estado según la cantidad pistoleada
     if (this.productoSeleccionado.cantidadPistoleada >= this.productoSeleccionado.cantidad) {
       this.productoSeleccionado.estadoPistola = 'pistoleado';
     } else if (this.productoSeleccionado.cantidadPistoleada > 0) {
       this.productoSeleccionado.estadoPistola = 'parcial';
+    } else {
+      this.productoSeleccionado.estadoPistola = 'no_pistoleado';
     }
 
     // Guardar en Firebase
     try {
       await this.updateProductoInFirebase(this.productoSeleccionado);
+      
+      // MODIFICADO: Mensaje según la operación
+      const signo = this.operacionModal === 'sumar' ? '+' : '-';
+      const emoji = this.operacionModal === 'sumar' ? '✅' : '➖';
+      
       this.showNotification(
-        `✅ ${this.productoSeleccionado.referencia}: +${cantidad} (Total: ${this.productoSeleccionado.cantidadPistoleada}/${this.productoSeleccionado.cantidad})`,
+        `${emoji} ${this.productoSeleccionado.referencia}: ${signo}${cantidad} (Total: ${this.productoSeleccionado.cantidadPistoleada}/${this.productoSeleccionado.cantidad})`,
         'success'
       );
     } catch (error) {
@@ -492,6 +536,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     this.showCantidadModal = false;
     this.productoSeleccionado = null;
     this.cantidadIngresada = 1;
+    this.operacionModal = 'sumar'; // NUEVO: Resetear a sumar por defecto
   }
 
   // ========== ACCIONES DE PRODUCTO ==========
@@ -499,6 +544,8 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   marcarPistoleado(producto: Producto): void {
     this.productoSeleccionado = producto;
     this.cantidadIngresada = producto.cantidad - producto.cantidadPistoleada;
+    if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
+    this.operacionModal = 'sumar';
     this.showCantidadModal = true;
   }
 

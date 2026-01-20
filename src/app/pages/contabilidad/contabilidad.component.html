@@ -297,15 +297,19 @@
   </div>
 </div>
 
-<!-- Modal de Cantidad -->
+<!-- ========== MODAL DE CANTIDAD MEJORADO CON SUMAR/RESTAR ========== -->
 <div *ngIf="showCantidadModal" class="modal-overlay" (click)="closeCantidadModal()">
   <div class="modal-content cantidad-modal" (click)="$event.stopPropagation()">
-    <div class="modal-header success">
-      <h2>✅ Producto Escaneado</h2>
+    
+    <!-- Header del Modal -->
+    <div class="modal-header" [class.success]="operacionModal === 'sumar'" [class.warning]="operacionModal === 'restar'">
+      <h2>{{ operacionModal === 'sumar' ? '✅ Agregar Cantidad' : '➖ Quitar Cantidad' }}</h2>
       <button class="close-btn" (click)="closeCantidadModal()">✕</button>
     </div>
     
     <div class="modal-body" *ngIf="productoSeleccionado">
+      
+      <!-- Info del producto escaneado -->
       <div class="scanned-product-info">
         <img 
           *ngIf="productoSeleccionado.barcodeDataUrl" 
@@ -319,6 +323,7 @@
         </div>
       </div>
 
+      <!-- Info de cantidades -->
       <div class="cantidad-info">
         <div class="info-row">
           <span>Cantidad esperada:</span>
@@ -326,7 +331,7 @@
         </div>
         <div class="info-row">
           <span>Ya pistoleado:</span>
-          <strong>{{ productoSeleccionado.cantidadPistoleada }}</strong>
+          <strong class="pistoleado-actual">{{ productoSeleccionado.cantidadPistoleada }}</strong>
         </div>
         <div class="info-row highlight">
           <span>Restante:</span>
@@ -334,33 +339,85 @@
         </div>
       </div>
 
+      <!-- ========== SELECTOR DE OPERACIÓN (SUMAR / RESTAR) ========== -->
+      <div class="operacion-selector">
+        <button 
+          class="op-btn sumar" 
+          [class.active]="operacionModal === 'sumar'"
+          (click)="setOperacion('sumar')">
+          <span class="op-icon">➕</span>
+          <span class="op-text">Sumar</span>
+        </button>
+        <button 
+          class="op-btn restar" 
+          [class.active]="operacionModal === 'restar'"
+          (click)="setOperacion('restar')"
+          [disabled]="productoSeleccionado.cantidadPistoleada === 0">
+          <span class="op-icon">➖</span>
+          <span class="op-text">Restar</span>
+        </button>
+      </div>
+
+      <!-- Input de cantidad -->
       <div class="cantidad-input-group">
-        <label>Cantidad a registrar:</label>
+        <label>Cantidad a {{ operacionModal === 'sumar' ? 'agregar' : 'quitar' }}:</label>
         <div class="cantidad-controls">
-          <button class="qty-btn" (click)="cantidadIngresada = cantidadIngresada > 1 ? cantidadIngresada - 1 : 1">−</button>
+          <button class="qty-btn minus" (click)="cantidadIngresada = cantidadIngresada > 1 ? cantidadIngresada - 1 : 1">−</button>
           <input 
             type="number" 
             [(ngModel)]="cantidadIngresada" 
             min="1" 
-            [max]="productoSeleccionado.cantidad"
+            [max]="operacionModal === 'restar' ? productoSeleccionado.cantidadPistoleada : 9999"
             class="cantidad-input"
+            (keyup.enter)="confirmarCantidad()"
             autofocus
           >
-          <button class="qty-btn" (click)="cantidadIngresada = cantidadIngresada + 1">+</button>
+          <button class="qty-btn plus" (click)="cantidadIngresada = cantidadIngresada + 1">+</button>
         </div>
+        
+        <!-- Botones rápidos -->
         <div class="quick-buttons">
           <button (click)="cantidadIngresada = 1">1</button>
           <button (click)="cantidadIngresada = 5">5</button>
           <button (click)="cantidadIngresada = 10">10</button>
-          <button (click)="cantidadIngresada = productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada">Todo</button>
+          <button 
+            *ngIf="operacionModal === 'sumar'"
+            (click)="cantidadIngresada = productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada"
+            [disabled]="productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada <= 0">
+            Todo ({{ productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada }})
+          </button>
+          <button 
+            *ngIf="operacionModal === 'restar'"
+            (click)="cantidadIngresada = productoSeleccionado.cantidadPistoleada"
+            [disabled]="productoSeleccionado.cantidadPistoleada <= 0">
+            Todo ({{ productoSeleccionado.cantidadPistoleada }})
+          </button>
         </div>
       </div>
+
+      <!-- Vista previa del resultado -->
+      <div class="preview-result" [class.sumar]="operacionModal === 'sumar'" [class.restar]="operacionModal === 'restar'">
+        <span class="preview-label">Resultado:</span>
+        <span class="preview-calculation">
+          {{ productoSeleccionado.cantidadPistoleada }} 
+          <span class="operador">{{ operacionModal === 'sumar' ? '+' : '−' }}</span> 
+          {{ cantidadIngresada }} = 
+          <strong class="preview-total">{{ calcularResultado() }}</strong>
+        </span>
+      </div>
+
     </div>
 
+    <!-- Footer con botones de acción -->
     <div class="modal-footer">
       <button class="btn-secondary" (click)="closeCantidadModal()">Cancelar</button>
-      <button class="btn-success" (click)="confirmarCantidad()">
-        ✅ Confirmar ({{ cantidadIngresada }})
+      <button 
+        class="btn-confirmar" 
+        [class.btn-success]="operacionModal === 'sumar'"
+        [class.btn-restar]="operacionModal === 'restar'"
+        (click)="confirmarCantidad()"
+        [disabled]="cantidadIngresada < 1 || (operacionModal === 'restar' && productoSeleccionado && productoSeleccionado.cantidadPistoleada === 0)">
+        {{ operacionModal === 'sumar' ? '✅ Confirmar Suma' : '➖ Confirmar Resta' }} ({{ cantidadIngresada }})
       </button>
     </div>
   </div>
