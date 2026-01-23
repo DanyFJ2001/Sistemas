@@ -1,10 +1,11 @@
 // src/app/pages/contabilidad/contabilidad.component.ts
 import { Component, OnInit, OnDestroy, HostListener, ElementRef, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import * as XLSX from 'xlsx';
 import JsBarcode from 'jsbarcode';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 // Firebase imports
 import { initializeApp, getApp, getApps } from 'firebase/app';
@@ -31,12 +32,19 @@ export interface Producto {
   updatedAt?: string;
 }
 
+export interface ProductoFactura {
+  nombre: string;
+  cantidad: number;
+  precio?: number;
+  total?: number;
+}
+
 @Component({
   selector: 'app-contabilidad',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DecimalPipe],
   templateUrl: './contabilidad.component.html',
-  styleUrl: './contabilidad.component.css'
+  styleUrl: './contabilidad.component.scss'
 })
 export class ContabilidadComponent implements OnInit, OnDestroy {
   @ViewChild('barcodeCanvas') barcodeCanvas!: ElementRef<HTMLCanvasElement>;
@@ -71,7 +79,8 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   showCantidadModal = false;
   productoSeleccionado: Producto | null = null;
   cantidadIngresada: number = 1;
-  operacionModal: 'sumar' | 'restar' = 'sumar'; // NUEVO: Tipo de operación
+  operacionModal: 'sumar' | 'restar' = 'restar';
+  cantidadMaximaDisponible: number = 0;
 
   // Modal de código de barras
   showBarcodeModal = false;
@@ -84,6 +93,13 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     existentes: 0,
     errores: 0
   };
+
+  // Modal de factura
+  showFacturaModal = false;
+  facturaFile: File | null = null;
+  loadingFactura = false;
+  productosDetectados: ProductoFactura[] = [];
+  facturaFileName = '';
 
   // Estadísticas
   stats = {
@@ -98,7 +114,10 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   private audioSuccess: HTMLAudioElement | null = null;
   private audioError: HTMLAudioElement | null = null;
 
-  constructor() {
+  // API Key para OpenRouter
+  private readonly OPENROUTER_API_KEY = 'TU_API_KEY_AQUI'; // Reemplazar con tu API key
+
+  constructor(private http: HttpClient) {
     this.initFirebase();
   }
 
@@ -130,7 +149,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     };
 
     try {
-      // Verificar si ya existe una app con este nombre
       const existingApps = getApps();
       const appName = 'contabilidad-app';
       
@@ -169,7 +187,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
             refe: prod.refe || '',
             cantidad: prod.cantidad || 0,
             cantidadPistoleada: prod.cantidadPistoleada || 0,
-            uMedida: prod.uMedida || 'UNIDAD',
+            uMedida: this.parseUnidadMedida(prod.uMedida),
             costo: prod.costo || 0,
             grupoII: prod.grupoII || '',
             grupoIII: prod.grupoIII || '',
@@ -179,7 +197,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
             createdAt: prod.createdAt || new Date().toISOString(),
             updatedAt: prod.updatedAt || new Date().toISOString()
           };
-          // Generar código de barras
           this.generateBarcode(producto);
           return producto;
         });
@@ -208,12 +225,11 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     const productoToSave = {
       ...producto,
       id: newProductoRef.key,
-      barcodeDataUrl: undefined, // No guardar el dataURL en Firebase
+      barcodeDataUrl: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
-    // Eliminar el barcodeDataUrl antes de guardar
     delete (productoToSave as any).barcodeDataUrl;
     
     await set(newProductoRef, productoToSave);
@@ -246,7 +262,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   // ========== AUDIO FEEDBACK ==========
   
   private initAudio(): void {
-    // Crear sonidos de feedback
     this.audioSuccess = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleUcJJ4jPxqJ1TQolh8K9jmA+Gh91t7mIVjUdY6yxfEwxF1SgqXJDKhJGkJ1pOiQOOYGQXS4ZCyx0gU8jEwch');
     this.audioError = new Audio('data:audio/wav;base64,UklGRl9vAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTtvAAB4eHh4eHh4eHh4eHh4eHh4');
   }
@@ -263,6 +278,53 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       this.audioError.currentTime = 0;
       this.audioError.play().catch(() => {});
     }
+  }
+
+  // ========== PARSEO SEGURO DE NÚMEROS ==========
+
+  private parseCantidadSegura(value: any): number {
+    if (value === null || value === undefined || value === '') return 0;
+    
+    // Si ya es un número, redondearlo a 2 decimales
+    if (typeof value === 'number') {
+      return Math.round(value * 100) / 100;
+    }
+    
+    // Si es string, limpiar y convertir
+    const cleanValue = value.toString()
+      .replace(',', '.') // Reemplazar coma decimal por punto
+      .replace(/[^\d.-]/g, ''); // Eliminar caracteres no numéricos excepto punto y menos
+    
+    const numero = parseFloat(cleanValue);
+    
+    // Validar que sea un número válido
+    if (isNaN(numero)) return 0;
+    
+    // Redondear a 2 decimales para evitar imprecisiones de punto flotante
+    return Math.round(numero * 100) / 100;
+  }
+
+  // ========== PARSEO SEGURO DE UNIDAD DE MEDIDA ==========
+
+  private parseUnidadMedida(value: any): string {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    
+    const texto = value.toString().trim();
+    
+    // Si es un número puro, NO es una unidad de medida válida
+    if (!isNaN(parseFloat(texto)) && isFinite(Number(texto))) {
+      return '';
+    }
+    
+    // Si está vacío o solo tiene espacios
+    if (texto.length === 0) {
+      return '';
+    }
+    
+    // Retornar el texto en mayúsculas
+    return texto.toUpperCase();
   }
 
   // ========== CARGA DE EXCEL ==========
@@ -303,60 +365,87 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Encontrar los índices de las columnas
     const headers = data[0].map((h: string) => h?.toString().toLowerCase().trim() || '');
     
     const columnMap: { [key: string]: number } = {};
-    const expectedColumns = ['producto', 'codigo', 'referencia', 'combo', 'refe', 'cantidad', 'u. medida', 'costo', 'grupo ii', 'grupo iii', 'estado'];
     
+    // Mapeo mejorado de columnas
     headers.forEach((header: string, index: number) => {
-      expectedColumns.forEach(col => {
-        if (header.includes(col.replace('.', '').replace(' ', ''))) {
-          columnMap[col] = index;
-        }
-      });
+      const headerLower = header.toLowerCase().trim();
+      
+      if (headerLower.includes('producto') && !headerLower.includes('codigo')) {
+        columnMap['producto'] = index;
+      } else if (headerLower.includes('codigo') || headerLower.includes('código')) {
+        columnMap['codigo'] = index;
+      } else if (headerLower.includes('referencia')) {
+        columnMap['referencia'] = index;
+      } else if (headerLower.includes('combo')) {
+        columnMap['combo'] = index;
+      } else if (headerLower === 'refe') {
+        columnMap['refe'] = index;
+      } else if (headerLower.includes('cantidad') && !headerLower.includes('pistol')) {
+        columnMap['cantidad'] = index;
+      } else if (headerLower.includes('medida') || headerLower.includes('u.') || headerLower === 'um' || headerLower === 'unidad') {
+        columnMap['u. medida'] = index;
+      } else if (headerLower.includes('costo') || headerLower.includes('precio')) {
+        columnMap['costo'] = index;
+      } else if (headerLower.includes('grupo ii') || headerLower === 'grupoii' || headerLower === 'grupo 2') {
+        columnMap['grupo ii'] = index;
+      } else if (headerLower.includes('grupo iii') || headerLower === 'grupoiii' || headerLower === 'grupo 3') {
+        columnMap['grupo iii'] = index;
+      } else if (headerLower === 'estado') {
+        columnMap['estado'] = index;
+      }
     });
 
-    // Resetear contadores de importación
+    console.log('📋 Headers encontrados:', headers);
+    console.log('📋 Mapeo de columnas detectado:', columnMap);
+
     this.importResult = { nuevos: 0, existentes: 0, errores: 0 };
 
-    // Procesar filas
     const productosNuevos: Producto[] = [];
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      if (!row || row.length === 0 || !row[columnMap['codigo'] || 1]) continue;
+      if (!row || row.length === 0) continue;
 
-      const codigo = row[columnMap['codigo'] || 1]?.toString().trim() || '';
+      // Obtener código de la columna mapeada o índice 1 por defecto
+      const codigoIndex = columnMap['codigo'] ?? 1;
+      const codigo = row[codigoIndex]?.toString().trim() || '';
       
-      // Verificar si ya existe en Firebase
+      if (!codigo) continue;
+      
       if (this.productoExisteEnFirebase(codigo)) {
         this.importResult.existentes++;
         console.log(`⏭️ Producto ya existe: ${codigo}`);
         continue;
       }
 
+      // Obtener unidad de medida y validar
+      const uMedidaIndex = columnMap['u. medida'];
+      const uMedidaRaw = uMedidaIndex !== undefined ? row[uMedidaIndex] : '';
+      const uMedida = this.parseUnidadMedida(uMedidaRaw);
+
       const producto: Producto = {
-        id: '', // Se asignará en Firebase
-        producto: row[columnMap['producto'] || 0]?.toString() || '',
+        id: '',
+        producto: row[columnMap['producto'] ?? 0]?.toString() || '',
         codigo: codigo,
-        referencia: row[columnMap['referencia'] || 2]?.toString() || '',
-        combo: row[columnMap['combo'] || 3]?.toString() || '',
-        refe: row[columnMap['refe'] || 4]?.toString() || '',
-        cantidad: parseFloat(row[columnMap['cantidad'] || 5]) || 0,
+        referencia: row[columnMap['referencia'] ?? 2]?.toString() || '',
+        combo: row[columnMap['combo'] ?? 3]?.toString() || '',
+        refe: row[columnMap['refe'] ?? 4]?.toString() || '',
+        cantidad: this.parseCantidadSegura(row[columnMap['cantidad'] ?? 5]),
         cantidadPistoleada: 0,
-        uMedida: row[columnMap['u. medida'] || 6]?.toString() || 'UNIDAD',
-        costo: parseFloat(row[columnMap['costo'] || 7]?.toString().replace(',', '.')) || 0,
-        grupoII: row[columnMap['grupo ii'] || 8]?.toString() || '',
-        grupoIII: row[columnMap['grupo iii'] || 9]?.toString() || '',
-        estado: row[columnMap['estado'] || 10]?.toString() || 'Activo',
+        uMedida: uMedida,
+        costo: this.parseCantidadSegura(row[columnMap['costo'] ?? 7]),
+        grupoII: row[columnMap['grupo ii'] ?? 8]?.toString() || '',
+        grupoIII: row[columnMap['grupo iii'] ?? 9]?.toString() || '',
+        estado: row[columnMap['estado'] ?? 10]?.toString() || 'Activo',
         estadoPistola: 'no_pistoleado'
       };
 
       productosNuevos.push(producto);
     }
 
-    // Guardar productos nuevos en Firebase
     if (productosNuevos.length > 0) {
       this.loadingMessage = `Guardando ${productosNuevos.length} productos nuevos en Firebase...`;
       
@@ -373,11 +462,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
     this.loading = false;
     this.loadingMessage = '';
-    
-    // Mostrar resultados de importación
     this.showImportResultModal = true;
-    
-    // Los productos se cargarán automáticamente por el listener de Firebase
   }
 
   // ========== GENERACIÓN DE CÓDIGOS DE BARRAS ==========
@@ -409,7 +494,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
     const currentTime = Date.now();
     
-    // Los scanners típicamente envían caracteres muy rápido (menos de 50ms entre caracteres)
     if (currentTime - this.lastScanTime > 100) {
       this.scannerBuffer = '';
     }
@@ -425,7 +509,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       this.scannerBuffer += event.key;
     }
 
-    // Timeout de seguridad
     if (this.scannerTimeout) {
       clearTimeout(this.scannerTimeout);
     }
@@ -450,8 +533,12 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     if (producto) {
       this.playSuccessSound();
       this.productoSeleccionado = producto;
-      this.cantidadIngresada = 1;
-      this.operacionModal = 'sumar'; // Por defecto sumar al escanear
+      
+      // Calcular cantidad disponible para pistolar
+      this.cantidadMaximaDisponible = producto.cantidad - producto.cantidadPistoleada;
+      this.cantidadIngresada = Math.min(1, this.cantidadMaximaDisponible);
+      
+      this.operacionModal = 'restar'; // Por defecto restar (pistolar)
       this.showCantidadModal = true;
       this.highlightProduct(producto.id);
     } else {
@@ -462,26 +549,34 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
   // ========== MODAL DE CANTIDAD ==========
 
-  // NUEVO: Método para cambiar la operación
   setOperacion(op: 'sumar' | 'restar'): void {
     this.operacionModal = op;
-    // Ajustar cantidad sugerida según la operación
-    if (op === 'sumar' && this.productoSeleccionado) {
-      this.cantidadIngresada = Math.min(1, this.productoSeleccionado.cantidad - this.productoSeleccionado.cantidadPistoleada);
-      if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
-    } else if (op === 'restar' && this.productoSeleccionado) {
-      this.cantidadIngresada = Math.min(1, this.productoSeleccionado.cantidadPistoleada);
-      if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
+    
+    if (!this.productoSeleccionado) return;
+    
+    if (op === 'restar') {
+      // Al pistolar (restar), máximo lo que queda disponible
+      this.cantidadMaximaDisponible = this.productoSeleccionado.cantidad - this.productoSeleccionado.cantidadPistoleada;
+      this.cantidadIngresada = Math.min(1, this.cantidadMaximaDisponible);
+    } else {
+      // Al devolver (sumar), máximo lo que ya fue pistoleado
+      this.cantidadMaximaDisponible = this.productoSeleccionado.cantidadPistoleada;
+      this.cantidadIngresada = Math.min(1, this.cantidadMaximaDisponible);
+    }
+    
+    if (this.cantidadIngresada < 1 && this.cantidadMaximaDisponible > 0) {
+      this.cantidadIngresada = 1;
     }
   }
 
-  // NUEVO: Calcular el resultado previo
   calcularResultado(): number {
     if (!this.productoSeleccionado) return 0;
     
-    if (this.operacionModal === 'sumar') {
+    if (this.operacionModal === 'restar') {
+      // Pistolar: aumenta cantidadPistoleada
       return this.productoSeleccionado.cantidadPistoleada + this.cantidadIngresada;
     } else {
+      // Devolver: disminuye cantidadPistoleada
       return Math.max(0, this.productoSeleccionado.cantidadPistoleada - this.cantidadIngresada);
     }
   }
@@ -491,11 +586,21 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
     const cantidad = this.cantidadIngresada || 1;
     
-    // MODIFICADO: Aplicar operación según el tipo seleccionado
-    if (this.operacionModal === 'sumar') {
+    // Validaciones según la operación
+    if (this.operacionModal === 'restar') {
+      // Pistolar: no puede exceder cantidad disponible
+      const disponible = this.productoSeleccionado.cantidad - this.productoSeleccionado.cantidadPistoleada;
+      if (cantidad > disponible) {
+        this.showNotification(`⚠️ Solo hay ${disponible} unidades disponibles para pistolar`, 'error');
+        return;
+      }
       this.productoSeleccionado.cantidadPistoleada += cantidad;
     } else {
-      // Restar - asegurar que no quede negativo
+      // Devolver: no puede exceder lo pistoleado
+      if (cantidad > this.productoSeleccionado.cantidadPistoleada) {
+        this.showNotification(`⚠️ Solo hay ${this.productoSeleccionado.cantidadPistoleada} unidades pistoleadas`, 'error');
+        return;
+      }
       this.productoSeleccionado.cantidadPistoleada = Math.max(0, this.productoSeleccionado.cantidadPistoleada - cantidad);
     }
     
@@ -510,16 +615,14 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       this.productoSeleccionado.estadoPistola = 'no_pistoleado';
     }
 
-    // Guardar en Firebase
     try {
       await this.updateProductoInFirebase(this.productoSeleccionado);
       
-      // MODIFICADO: Mensaje según la operación
-      const signo = this.operacionModal === 'sumar' ? '+' : '-';
-      const emoji = this.operacionModal === 'sumar' ? '✅' : '➖';
+      const signo = this.operacionModal === 'restar' ? '📦' : '↩️';
+      const accion = this.operacionModal === 'restar' ? 'Pistoleado' : 'Devuelto';
       
       this.showNotification(
-        `${emoji} ${this.productoSeleccionado.referencia}: ${signo}${cantidad} (Total: ${this.productoSeleccionado.cantidadPistoleada}/${this.productoSeleccionado.cantidad})`,
+        `${signo} ${accion}: ${this.productoSeleccionado.referencia} x${cantidad} (${this.productoSeleccionado.cantidadPistoleada}/${this.productoSeleccionado.cantidad})`,
         'success'
       );
     } catch (error) {
@@ -536,16 +639,20 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     this.showCantidadModal = false;
     this.productoSeleccionado = null;
     this.cantidadIngresada = 1;
-    this.operacionModal = 'sumar'; // NUEVO: Resetear a sumar por defecto
+    this.operacionModal = 'restar';
+    this.cantidadMaximaDisponible = 0;
   }
 
   // ========== ACCIONES DE PRODUCTO ==========
 
   marcarPistoleado(producto: Producto): void {
     this.productoSeleccionado = producto;
-    this.cantidadIngresada = producto.cantidad - producto.cantidadPistoleada;
-    if (this.cantidadIngresada < 1) this.cantidadIngresada = 1;
-    this.operacionModal = 'sumar';
+    this.cantidadMaximaDisponible = producto.cantidad - producto.cantidadPistoleada;
+    this.cantidadIngresada = Math.min(1, this.cantidadMaximaDisponible);
+    if (this.cantidadIngresada < 1 && this.cantidadMaximaDisponible > 0) {
+      this.cantidadIngresada = 1;
+    }
+    this.operacionModal = 'restar';
     this.showCantidadModal = true;
   }
 
@@ -587,6 +694,231 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
         setTimeout(() => element.classList.remove('highlight-scan'), 2000);
       }
     }, 100);
+  }
+
+  // ========== PROCESAMIENTO DE FACTURAS CON IA ==========
+
+  abrirModalFactura(): void {
+    this.showFacturaModal = true;
+    this.productosDetectados = [];
+    this.facturaFile = null;
+    this.facturaFileName = '';
+  }
+
+  onFacturaSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    this.facturaFile = input.files[0];
+    this.facturaFileName = this.facturaFile.name;
+  }
+
+  async procesarFactura(): Promise<void> {
+    if (!this.facturaFile) {
+      this.showNotification('Por favor selecciona una factura PDF', 'error');
+      return;
+    }
+
+    this.loadingFactura = true;
+    this.loadingMessage = 'Procesando factura con IA...';
+
+    try {
+      // Convertir PDF a base64
+      const base64 = await this.convertirPdfABase64(this.facturaFile);
+      
+      // Llamar a la API de OpenRouter para análisis
+      const productosDetectados = await this.analizarFacturaConIA(base64);
+      
+      this.productosDetectados = productosDetectados;
+      this.loadingFactura = false;
+      this.loadingMessage = '';
+      
+      if (productosDetectados.length === 0) {
+        this.showNotification('No se detectaron productos en la factura', 'error');
+      } else {
+        this.showNotification(`✅ ${productosDetectados.length} productos detectados`, 'success');
+      }
+    } catch (error) {
+      console.error('Error procesando factura:', error);
+      this.loadingFactura = false;
+      this.loadingMessage = '';
+      this.showNotification('Error al procesar la factura con IA', 'error');
+    }
+  }
+
+  private convertirPdfABase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Extraer solo la parte base64 (después de "data:application/pdf;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private async analizarFacturaConIA(base64Pdf: string): Promise<ProductoFactura[]> {
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://segurilab.com',
+      'X-Title': 'SeguriLab Inventory'
+    });
+
+    const prompt = `Analiza esta factura PDF y extrae ÚNICAMENTE los productos con sus cantidades.
+
+Devuelve un JSON con este formato exacto:
+{
+  "productos": [
+    {
+      "nombre": "nombre exacto del producto",
+      "cantidad": número,
+      "precio": número (opcional),
+      "total": número (opcional)
+    }
+  ]
+}
+
+Reglas:
+- Solo productos comprados, NO servicios ni impuestos
+- Usa el nombre EXACTO como aparece en la factura
+- Cantidad debe ser un número entero
+- Si no encuentras productos, devuelve: {"productos": []}`;
+
+    const body = {
+      model: 'google/gemini-2.0-flash-exp:free',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${base64Pdf}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 2000
+    };
+
+    try {
+      const response = await this.http.post<any>(
+        'https://openrouter.ai/api/v1/chat/completions',
+        body,
+        { headers }
+      ).toPromise();
+
+      const contenido = response.choices[0].message.content;
+      
+      // Limpiar la respuesta (eliminar markdown si existe)
+      let jsonText = contenido.trim();
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      }
+      
+      const resultado = JSON.parse(jsonText);
+      return resultado.productos || [];
+      
+    } catch (error) {
+      console.error('Error llamando a OpenRouter:', error);
+      throw error;
+    }
+  }
+
+  async aplicarProductosDetectados(): Promise<void> {
+    if (this.productosDetectados.length === 0) {
+      this.showNotification('No hay productos detectados para aplicar', 'error');
+      return;
+    }
+
+    this.loadingFactura = true;
+    this.loadingMessage = 'Aplicando productos detectados...';
+
+    let aplicados = 0;
+    let noEncontrados: string[] = [];
+
+    for (const prodFactura of this.productosDetectados) {
+      // Buscar producto en inventario por similitud de nombre
+      const productoEncontrado = this.buscarProductoPorNombre(prodFactura.nombre);
+      
+      if (productoEncontrado) {
+        // Aumentar la cantidad
+        productoEncontrado.cantidad += prodFactura.cantidad;
+        
+        try {
+          await this.updateProductoInFirebase(productoEncontrado);
+          aplicados++;
+        } catch (error) {
+          console.error('Error actualizando producto:', productoEncontrado.codigo, error);
+        }
+      } else {
+        noEncontrados.push(prodFactura.nombre);
+      }
+    }
+
+    this.loadingFactura = false;
+    this.loadingMessage = '';
+    this.closeFacturaModal();
+
+    if (aplicados > 0) {
+      this.showNotification(`✅ ${aplicados} productos actualizados`, 'success');
+    }
+    
+    if (noEncontrados.length > 0) {
+      console.warn('Productos no encontrados:', noEncontrados);
+      this.showNotification(`⚠️ ${noEncontrados.length} productos no encontrados en inventario`, 'error');
+    }
+
+    this.updateStats();
+    this.filterProducts();
+  }
+
+  private buscarProductoPorNombre(nombreFactura: string): Producto | null {
+    const nombreLimpio = this.limpiarTexto(nombreFactura);
+    
+    // Búsqueda exacta primero
+    let encontrado = this.productos.find(p => 
+      this.limpiarTexto(p.producto) === nombreLimpio ||
+      this.limpiarTexto(p.referencia) === nombreLimpio
+    );
+
+    if (encontrado) return encontrado;
+
+    // Búsqueda por similitud (contiene)
+    encontrado = this.productos.find(p => 
+      this.limpiarTexto(p.producto).includes(nombreLimpio) ||
+      nombreLimpio.includes(this.limpiarTexto(p.producto)) ||
+      this.limpiarTexto(p.referencia).includes(nombreLimpio) ||
+      nombreLimpio.includes(this.limpiarTexto(p.referencia))
+    );
+
+    return encontrado || null;
+  }
+
+  private limpiarTexto(texto: string): string {
+    return texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+      .replace(/[^a-z0-9\s]/g, '') // Solo letras, números y espacios
+      .trim();
+  }
+
+  closeFacturaModal(): void {
+    this.showFacturaModal = false;
+    this.facturaFile = null;
+    this.facturaFileName = '';
+    this.productosDetectados = [];
   }
 
   // ========== FILTRADO ==========
@@ -656,7 +988,6 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
 
-    // Ajustar anchos de columna
     const colWidths = [
       { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 15 },
       { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
@@ -691,128 +1022,124 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
 
   // ========== IMPRESIÓN DE CÓDIGOS ==========
 
-imprimirCodigosBarras(): void {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
+  imprimirCodigosBarras(): void {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-  // Configuración para etiquetas Zebra 6cm x 3.5cm
-  const etiquetaAncho = 60; // mm
-  const etiquetaAlto = 35;  // mm
+    const etiquetaAncho = 60;
+    const etiquetaAlto = 35;
 
-  let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Códigos de Barras - SEGURILAB</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        @page {
-          size: ${etiquetaAncho}mm ${etiquetaAlto}mm;
-          margin: 0;
-        }
-        
-        body { 
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        
-        .etiqueta {
-          width: ${etiquetaAncho}mm;
-          height: ${etiquetaAlto}mm;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 2mm 4mm;
-          page-break-after: always;
-          box-sizing: border-box;
-        }
-        
-        .etiqueta:last-child {
-          page-break-after: auto;
-        }
-        
-        .barcode-item {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-        }
-        
-        .barcode-item img { 
-          max-width: 90%;
-          max-height: 24mm;
-          height: auto;
-          object-fit: contain;
-        }
-        
-        .product-name {
-          font-size: 8pt;
-          font-weight: bold;
-          margin-bottom: 2mm;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 100%;
-        }
-        
-        .product-code {
-          font-size: 7pt;
-          margin-top: 1mm;
-        }
-        
-        @media print {
-          body { -webkit-print-color-adjust: exact; }
-          .etiqueta { border: none; }
-        }
-        
-        /* Vista previa en pantalla */
-        @media screen {
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Códigos de Barras - SEGURILAB</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          
+          @page {
+            size: ${etiquetaAncho}mm ${etiquetaAlto}mm;
+            margin: 0;
+          }
+          
           body { 
-            background: #f0f0f0; 
-            padding: 10mm;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
           }
-          .etiqueta { 
-            border: 1px dashed #999;
-            background: white;
-            margin-bottom: 5mm;
+          
+          .etiqueta {
+            width: ${etiquetaAncho}mm;
+            height: ${etiquetaAlto}mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2mm 4mm;
+            page-break-after: always;
+            box-sizing: border-box;
           }
-        }
-      </style>
-    </head>
-    <body>
-  `;
-
-  // Filtrar productos con código de barras
-  const productosConBarcode = this.productos.filter(p => p.barcodeDataUrl);
-  
-  // 1 código por etiqueta
-  productosConBarcode.forEach(p => {
-    html += `
-      <div class="etiqueta">
-        <div class="barcode-item">
-          <div class="product-name">${p.referencia || p.producto}</div>
-          <img src="${p.barcodeDataUrl}" alt="${p.codigo}">
-          <div class="product-code">${p.codigo}</div>
-        </div>
-      </div>
+          
+          .etiqueta:last-child {
+            page-break-after: auto;
+          }
+          
+          .barcode-item {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+          }
+          
+          .barcode-item img { 
+            max-width: 90%;
+            max-height: 24mm;
+            height: auto;
+            object-fit: contain;
+          }
+          
+          .product-name {
+            font-size: 8pt;
+            font-weight: bold;
+            margin-bottom: 2mm;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+          }
+          
+          .product-code {
+            font-size: 7pt;
+            margin-top: 1mm;
+          }
+          
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+            .etiqueta { border: none; }
+          }
+          
+          @media screen {
+            body { 
+              background: #f0f0f0; 
+              padding: 10mm;
+            }
+            .etiqueta { 
+              border: 1px dashed #999;
+              background: white;
+              margin-bottom: 5mm;
+            }
+          }
+        </style>
+      </head>
+      <body>
     `;
-  });
 
-  html += `
-    </body>
-    </html>
-  `;
+    const productosConBarcode = this.productos.filter(p => p.barcodeDataUrl);
+    
+    productosConBarcode.forEach(p => {
+      html += `
+        <div class="etiqueta">
+          <div class="barcode-item">
+            <div class="product-name">${p.referencia || p.producto}</div>
+            <img src="${p.barcodeDataUrl}" alt="${p.codigo}">
+            <div class="product-code">${p.codigo}</div>
+          </div>
+        </div>
+      `;
+    });
 
-  printWindow.document.write(html);
-  printWindow.document.close();
-  setTimeout(() => printWindow.print(), 500);
-}
+    html += `
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+  }
 
   // ========== UTILIDADES ==========
 
@@ -850,8 +1177,6 @@ imprimirCodigosBarras(): void {
   }
 
   limpiarArchivo(): void {
-    // Solo resetear el estado del archivo para permitir subir otro Excel
-    // NO elimina los productos de Firebase
     this.fileName = '';
     const fileInput = document.getElementById('fileInput') as HTMLInputElement;
     if (fileInput) {
@@ -865,7 +1190,6 @@ imprimirCodigosBarras(): void {
       return;
     }
     
-    // Segunda confirmación
     if (!confirm('🚨 ÚLTIMA ADVERTENCIA:\n\nSe eliminarán ' + this.productos.length + ' productos de la base de datos.\n\n¿Continuar?')) {
       return;
     }
@@ -909,7 +1233,6 @@ imprimirCodigosBarras(): void {
   }
 
   private showNotification(message: string, type: 'success' | 'error' | 'info'): void {
-    // Crear elemento de notificación
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
@@ -935,9 +1258,9 @@ imprimirCodigosBarras(): void {
 
   getEstadoClass(estado: string): string {
     switch (estado) {
-      case 'pistoleado': return 'estado-pistoleado';
-      case 'parcial': return 'estado-parcial';
-      default: return 'estado-no-pistoleado';
+      case 'pistoleado': return 'pistoleado';
+      case 'parcial': return 'parcial';
+      default: return 'no_pistoleado';
     }
   }
 
@@ -945,7 +1268,17 @@ imprimirCodigosBarras(): void {
     switch (estado) {
       case 'pistoleado': return '✅ Pistoleado';
       case 'parcial': return '⚠️ Parcial';
-      default: return '⏳ No Pistoleado';
+      default: return '⏳ Pendiente';
     }
+  }
+
+  // Método para formatear números sin decimales innecesarios
+  formatNumber(num: number): string {
+    // Si el número es entero, mostrar sin decimales
+    if (Number.isInteger(num)) {
+      return num.toString();
+    }
+    // Si tiene decimales, mostrar máximo 2
+    return num.toFixed(2).replace(/\.?0+$/, '');
   }
 }

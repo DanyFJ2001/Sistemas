@@ -14,6 +14,17 @@
         {{ scannerEnabled ? 'Scanner Activo' : 'Scanner Inactivo' }}
       </div>
 
+      <!-- NUEVO: Botón para procesar facturas con IA -->
+      <button class="btn-primary" (click)="abrirModalFactura()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <circle cx="12" cy="13" r="2"></circle>
+          <path d="M12 15v4"></path>
+        </svg>
+        <span class="btn-text">Procesar Factura IA</span>
+      </button>
+
       <button class="btn-secondary" (click)="imprimirCodigosBarras()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -229,18 +240,18 @@
             </td>
 
             <td class="td-center">
-              <span class="cantidad-badge">{{ producto.cantidad }} {{ producto.uMedida }}</span>
+              <span class="cantidad-badge">{{ formatNumber(producto.cantidad) }} {{ producto.uMedida }}</span>
             </td>
 
             <td class="td-center">
               <span class="cantidad-pistoleada" [class.completo]="producto.cantidadPistoleada >= producto.cantidad">
-                {{ producto.cantidadPistoleada }}
+                {{ formatNumber(producto.cantidadPistoleada) }}
               </span>
             </td>
 
             <td class="td-center">
               <span class="diferencia" [class.warning]="producto.cantidad - producto.cantidadPistoleada > 0">
-                {{ producto.cantidad - producto.cantidadPistoleada }}
+                {{ formatNumber(producto.cantidad - producto.cantidadPistoleada) }}
               </span>
             </td>
 
@@ -303,7 +314,7 @@
     
     <!-- Header del Modal -->
     <div class="modal-header" [class.success]="operacionModal === 'sumar'" [class.warning]="operacionModal === 'restar'">
-      <h2>{{ operacionModal === 'sumar' ? '✅ Agregar Cantidad' : '➖ Quitar Cantidad' }}</h2>
+      <h2>{{ operacionModal === 'sumar' ? '➕ Devolver al Inventario' : '📦 Pistolar Producto' }}</h2>
       <button class="close-btn" (click)="closeCantidadModal()">✕</button>
     </div>
     
@@ -334,7 +345,7 @@
           <strong class="pistoleado-actual">{{ productoSeleccionado.cantidadPistoleada }}</strong>
         </div>
         <div class="info-row highlight">
-          <span>Restante:</span>
+          <span>Disponible para pistolar:</span>
           <strong>{{ productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada }}</strong>
         </div>
       </div>
@@ -344,30 +355,33 @@
         <button 
           class="op-btn sumar" 
           [class.active]="operacionModal === 'sumar'"
-          (click)="setOperacion('sumar')">
+          (click)="setOperacion('sumar')"
+          [disabled]="productoSeleccionado.cantidadPistoleada === 0">
           <span class="op-icon">➕</span>
-          <span class="op-text">Sumar</span>
+          <span class="op-text">Devolver</span>
+          <small style="font-size: 11px; color: #6b7280;">Deshacer pistolado</small>
         </button>
         <button 
           class="op-btn restar" 
           [class.active]="operacionModal === 'restar'"
           (click)="setOperacion('restar')"
-          [disabled]="productoSeleccionado.cantidadPistoleada === 0">
-          <span class="op-icon">➖</span>
-          <span class="op-text">Restar</span>
+          [disabled]="(productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada) === 0">
+          <span class="op-icon">📦</span>
+          <span class="op-text">Pistolar</span>
+          <small style="font-size: 11px; color: #6b7280;">Registrar uso</small>
         </button>
       </div>
 
       <!-- Input de cantidad -->
       <div class="cantidad-input-group">
-        <label>Cantidad a {{ operacionModal === 'sumar' ? 'agregar' : 'quitar' }}:</label>
+        <label>Cantidad a {{ operacionModal === 'sumar' ? 'devolver' : 'pistolar' }}:</label>
         <div class="cantidad-controls">
           <button class="qty-btn minus" (click)="cantidadIngresada = cantidadIngresada > 1 ? cantidadIngresada - 1 : 1">−</button>
           <input 
             type="number" 
             [(ngModel)]="cantidadIngresada" 
             min="1" 
-            [max]="operacionModal === 'restar' ? productoSeleccionado.cantidadPistoleada : 9999"
+            [max]="cantidadMaximaDisponible"
             class="cantidad-input"
             (keyup.enter)="confirmarCantidad()"
             autofocus
@@ -381,16 +395,9 @@
           <button (click)="cantidadIngresada = 5">5</button>
           <button (click)="cantidadIngresada = 10">10</button>
           <button 
-            *ngIf="operacionModal === 'sumar'"
-            (click)="cantidadIngresada = productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada"
-            [disabled]="productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada <= 0">
-            Todo ({{ productoSeleccionado.cantidad - productoSeleccionado.cantidadPistoleada }})
-          </button>
-          <button 
-            *ngIf="operacionModal === 'restar'"
-            (click)="cantidadIngresada = productoSeleccionado.cantidadPistoleada"
-            [disabled]="productoSeleccionado.cantidadPistoleada <= 0">
-            Todo ({{ productoSeleccionado.cantidadPistoleada }})
+            (click)="cantidadIngresada = cantidadMaximaDisponible"
+            [disabled]="cantidadMaximaDisponible <= 0">
+            Todo ({{ cantidadMaximaDisponible }})
           </button>
         </div>
       </div>
@@ -400,7 +407,7 @@
         <span class="preview-label">Resultado:</span>
         <span class="preview-calculation">
           {{ productoSeleccionado.cantidadPistoleada }} 
-          <span class="operador">{{ operacionModal === 'sumar' ? '+' : '−' }}</span> 
+          <span class="operador">{{ operacionModal === 'sumar' ? '−' : '+' }}</span> 
           {{ cantidadIngresada }} = 
           <strong class="preview-total">{{ calcularResultado() }}</strong>
         </span>
@@ -416,9 +423,90 @@
         [class.btn-success]="operacionModal === 'sumar'"
         [class.btn-restar]="operacionModal === 'restar'"
         (click)="confirmarCantidad()"
-        [disabled]="cantidadIngresada < 1 || (operacionModal === 'restar' && productoSeleccionado && productoSeleccionado.cantidadPistoleada === 0)">
-        {{ operacionModal === 'sumar' ? '✅ Confirmar Suma' : '➖ Confirmar Resta' }} ({{ cantidadIngresada }})
+        [disabled]="cantidadIngresada < 1 || cantidadMaximaDisponible <= 0">
+        {{ operacionModal === 'sumar' ? '➕ Confirmar Devolución' : '📦 Confirmar Pistolado' }} ({{ cantidadIngresada }})
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL DE FACTURA CON IA ========== -->
+<div *ngIf="showFacturaModal" class="modal-overlay" (click)="closeFacturaModal()">
+  <div class="modal-content factura-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>🤖 Procesar Factura con IA</h2>
+      <button class="close-btn" (click)="closeFacturaModal()">✕</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="factura-upload-section">
+        <p class="instruction">
+          Sube una factura en PDF y la IA detectará automáticamente los productos y cantidades para sumarlos al inventario.
+        </p>
+        
+        <div class="file-upload-zone">
+          <input 
+            type="file" 
+            id="facturaInput" 
+            accept=".pdf" 
+            (change)="onFacturaSelected($event)"
+            style="display: none;">
+          <label for="facturaInput" class="upload-label">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">
+              <strong>Seleccionar Factura PDF</strong>
+              <small>Solo archivos PDF (texto, no escaneados)</small>
+            </div>
+          </label>
+          <span class="file-selected" *ngIf="facturaFileName">
+            ✅ {{ facturaFileName }}
+          </span>
+        </div>
+
+        <button 
+          class="btn-primary btn-upload" 
+          (click)="procesarFactura()"
+          [disabled]="!facturaFile || loadingFactura"
+          style="width: 100%; margin-top: 20px; justify-content: center;">
+          {{ loadingFactura ? '⏳ Procesando con IA...' : '🚀 Analizar Factura' }}
+        </button>
+      </div>
+
+      <!-- Productos detectados -->
+      <div class="productos-detectados" *ngIf="productosDetectados.length > 0">
+        <h4>✅ Productos Detectados ({{ productosDetectados.length }})</h4>
+        <div class="table-responsive">
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio Unit.</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let prod of productosDetectados">
+                <td>{{ prod.nombre }}</td>
+                <td><strong>{{ prod.cantidad }}</strong></td>
+                <td>{{ prod.precio ? ('$' + prod.precio.toFixed(2)) : '-' }}</td>
+                <td>{{ prod.total ? ('$' + prod.total.toFixed(2)) : '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert alert-info">
+          ℹ️ Los productos se buscarán en el inventario por similitud de nombre. Las cantidades se <strong>SUMARÁN</strong> al inventario actual (entrada de mercancía).
+        </div>
+
+        <button 
+          class="btn-success btn-upload" 
+          (click)="aplicarProductosDetectados()"
+          style="width: 100%; margin-top: 15px; justify-content: center;">
+          ✅ Aplicar al Inventario (Sumar Cantidades)
+        </button>
+      </div>
     </div>
   </div>
 </div>
