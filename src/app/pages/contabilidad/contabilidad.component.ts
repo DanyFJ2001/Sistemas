@@ -34,6 +34,7 @@ export interface Producto {
 
 export interface ProductoFactura {
   nombre: string;
+  codigo?: string;
   cantidad: number;
   precio?: number;
   total?: number;
@@ -115,7 +116,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   private audioError: HTMLAudioElement | null = null;
 
   // API Key para OpenRouter
-  private readonly OPENROUTER_API_KEY = 'TU_API_KEY_AQUI'; // Reemplazar con tu API key
+  private readonly OPENROUTER_API_KEY = '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'; // Reemplazar con tu API key
 
   constructor(private http: HttpClient) {
     this.initFirebase();
@@ -761,6 +762,16 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   }
 
   private async analizarFacturaConIA(base64Pdf: string): Promise<ProductoFactura[]> {
+    // Primero extraer texto del PDF
+    const textoPdf = await this.extraerTextoPdf(base64Pdf);
+    
+    if (!textoPdf || textoPdf.trim().length < 50) {
+      console.error('No se pudo extraer texto del PDF');
+      throw new Error('El PDF no contiene texto extraíble. Intenta con un PDF que no sea imagen escaneada.');
+    }
+
+    console.log('📄 Texto extraído del PDF:', textoPdf.substring(0, 500) + '...');
+
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
@@ -768,71 +779,183 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
       'X-Title': 'SeguriLab Inventory'
     });
 
-    const prompt = `Analiza esta factura PDF y extrae ÚNICAMENTE los productos con sus cantidades.
+    const prompt = `Analiza el siguiente texto de una factura y extrae ÚNICAMENTE los productos con sus cantidades.
 
-Devuelve un JSON con este formato exacto:
+TEXTO DE LA FACTURA:
+---
+${textoPdf}
+---
+
+Devuelve SOLO un JSON con este formato exacto (sin explicaciones adicionales):
 {
   "productos": [
     {
-      "nombre": "nombre exacto del producto",
+      "nombre": "descripción del producto",
+      "codigo": "código del producto",
       "cantidad": número,
-      "precio": número (opcional),
-      "total": número (opcional)
+      "precio": número,
+      "total": número
     }
   ]
 }
 
-Reglas:
-- Solo productos comprados, NO servicios ni impuestos
-- Usa el nombre EXACTO como aparece en la factura
-- Cantidad debe ser un número entero
+Reglas importantes:
+- Solo productos/artículos comprados
+- NO incluir: subtotales, IVA, descuentos, totales, servicios
+- La cantidad debe ser un número
 - Si no encuentras productos, devuelve: {"productos": []}`;
 
-    const body = {
-      model: 'google/gemini-2.0-flash-exp:free',
-      messages: [
-        {
-          role: 'user',
-          content: [
+    // Lista de modelos GRATUITOS a intentar (actualizados enero 2026)
+    const modelos = [
+      'deepseek/deepseek-chat:free',                              // DeepSeek V3 - muy bueno
+      'deepseek/deepseek-r1-distill-llama-70b:free',              // DeepSeek R1
+      'nvidia/nemotron-3-nano-30b-a3b:free',  
+      "openai/gpt-oss-120b" ,                   // Nvidia Nemotron
+                              // Llama 4
+      'google/gemini-2.0-flash-exp:free'                          // Gemini (backup)
+    ];
+
+    let ultimoError: any = null;
+
+    for (const modelo of modelos) {
+      try {
+        console.log(`🤖 Intentando con modelo: ${modelo}`);
+        
+        const body = {
+          model: modelo,
+          messages: [
             {
-              type: 'text',
-              text: prompt
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:application/pdf;base64,${base64Pdf}`
-              }
+              role: 'user',
+              content: prompt
             }
-          ]
+          ],
+          temperature: 0.1,
+          max_tokens: 2000
+        };
+
+        const response = await this.http.post<any>(
+          'https://openrouter.ai/api/v1/chat/completions',
+          body,
+          { headers }
+        ).toPromise();
+
+        // Verificar que hay respuesta
+        if (!response?.choices?.[0]?.message?.content) {
+          console.warn(`⚠️ Modelo ${modelo} devolvió respuesta vacía`);
+          continue;
         }
-      ],
-      temperature: 0.1,
-      max_tokens: 2000
-    };
 
-    try {
-      const response = await this.http.post<any>(
-        'https://openrouter.ai/api/v1/chat/completions',
-        body,
-        { headers }
-      ).toPromise();
+        const contenido = response.choices[0].message.content;
+        console.log('📝 Respuesta de IA:', contenido);
 
-      const contenido = response.choices[0].message.content;
-      
-      // Limpiar la respuesta (eliminar markdown si existe)
-      let jsonText = contenido.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        // Verificar que el contenido no esté vacío
+        if (!contenido || contenido.trim().length < 10) {
+          console.warn(`⚠️ Modelo ${modelo} devolvió contenido muy corto o vacío`);
+          continue;
+        }
+        
+        // Limpiar la respuesta (eliminar markdown si existe)
+        let jsonText = contenido.trim();
+        
+        // Buscar el JSON en la respuesta
+        const jsonMatch = jsonText.match(/\{[\s\S]*"productos"[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[0];
+        } else if (jsonText.startsWith('```')) {
+          jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        }
+
+        // Verificar que tenemos algo que parsear
+        if (!jsonText || jsonText.length < 10) {
+          console.warn(`⚠️ No se encontró JSON válido en la respuesta de ${modelo}`);
+          continue;
+        }
+        
+        const resultado = JSON.parse(jsonText);
+        console.log('✅ Productos detectados:', resultado.productos);
+        return resultado.productos || [];
+        
+      } catch (error: any) {
+        const errorMsg = error.status || error.message || 'Error desconocido';
+        console.warn(`⚠️ Error con modelo ${modelo}:`, errorMsg);
+        ultimoError = error;
+        
+        // Si es error 429 (rate limit), esperar un poco antes del siguiente
+        if (error.status === 429) {
+          console.log('⏳ Rate limit alcanzado, esperando 2s antes de probar siguiente modelo...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+        // Continuar con el siguiente modelo
+        continue;
       }
-      
-      const resultado = JSON.parse(jsonText);
-      return resultado.productos || [];
-      
-    } catch (error) {
-      console.error('Error llamando a OpenRouter:', error);
-      throw error;
     }
+
+    // Si ningún modelo funcionó
+    console.error('❌ Todos los modelos fallaron');
+    throw ultimoError || new Error('No se pudo procesar la factura con ningún modelo disponible');
+  }
+
+  // Método para extraer texto de un PDF usando pdf.js (cargado dinámicamente)
+  private async extraerTextoPdf(base64Pdf: string): Promise<string> {
+    try {
+      // Cargar pdf.js dinámicamente si no está disponible
+      if (!(window as any).pdfjsLib) {
+        await this.cargarPdfJs();
+      }
+
+      const pdfjsLib = (window as any).pdfjsLib;
+      
+      // Convertir base64 a ArrayBuffer
+      const binaryString = atob(base64Pdf);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Cargar el PDF
+      const loadingTask = pdfjsLib.getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+
+      let textoCompleto = '';
+
+      // Extraer texto de cada página
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        textoCompleto += pageText + '\n';
+      }
+
+      return textoCompleto;
+    } catch (error) {
+      console.error('Error extrayendo texto del PDF:', error);
+      return '';
+    }
+  }
+
+  // Cargar pdf.js desde CDN
+  private cargarPdfJs(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Verificar si ya está cargado
+      if ((window as any).pdfjsLib) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        const pdfjsLib = (window as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        console.log('✅ PDF.js cargado correctamente');
+        resolve();
+      };
+      script.onerror = () => reject(new Error('No se pudo cargar PDF.js'));
+      document.head.appendChild(script);
+    });
   }
 
   async aplicarProductosDetectados(): Promise<void> {
@@ -848,8 +971,8 @@ Reglas:
     let noEncontrados: string[] = [];
 
     for (const prodFactura of this.productosDetectados) {
-      // Buscar producto en inventario por similitud de nombre
-      const productoEncontrado = this.buscarProductoPorNombre(prodFactura.nombre);
+      // Buscar producto en inventario por código o nombre
+      const productoEncontrado = this.buscarProductoPorNombre(prodFactura);
       
       if (productoEncontrado) {
         // Aumentar la cantidad
@@ -862,7 +985,7 @@ Reglas:
           console.error('Error actualizando producto:', productoEncontrado.codigo, error);
         }
       } else {
-        noEncontrados.push(prodFactura.nombre);
+        noEncontrados.push(`${prodFactura.nombre} (${prodFactura.codigo || 'sin código'})`);
       }
     }
 
@@ -883,16 +1006,33 @@ Reglas:
     this.filterProducts();
   }
 
-  private buscarProductoPorNombre(nombreFactura: string): Producto | null {
-    const nombreLimpio = this.limpiarTexto(nombreFactura);
+  private buscarProductoPorNombre(prodFactura: ProductoFactura): Producto | null {
+    const nombreLimpio = this.limpiarTexto(prodFactura.nombre);
+    const codigoLimpio = prodFactura.codigo ? this.limpiarTexto(prodFactura.codigo) : '';
     
-    // Búsqueda exacta primero
+    // Búsqueda por código primero (más precisa)
+    if (codigoLimpio) {
+      const porCodigo = this.productos.find(p => 
+        this.limpiarTexto(p.codigo) === codigoLimpio ||
+        this.limpiarTexto(p.codigo).includes(codigoLimpio) ||
+        codigoLimpio.includes(this.limpiarTexto(p.codigo))
+      );
+      if (porCodigo) {
+        console.log(`✅ Encontrado por código: ${prodFactura.codigo} -> ${porCodigo.codigo}`);
+        return porCodigo;
+      }
+    }
+    
+    // Búsqueda exacta por nombre
     let encontrado = this.productos.find(p => 
       this.limpiarTexto(p.producto) === nombreLimpio ||
       this.limpiarTexto(p.referencia) === nombreLimpio
     );
 
-    if (encontrado) return encontrado;
+    if (encontrado) {
+      console.log(`✅ Encontrado por nombre exacto: ${prodFactura.nombre} -> ${encontrado.referencia}`);
+      return encontrado;
+    }
 
     // Búsqueda por similitud (contiene)
     encontrado = this.productos.find(p => 
@@ -901,6 +1041,12 @@ Reglas:
       this.limpiarTexto(p.referencia).includes(nombreLimpio) ||
       nombreLimpio.includes(this.limpiarTexto(p.referencia))
     );
+
+    if (encontrado) {
+      console.log(`✅ Encontrado por similitud: ${prodFactura.nombre} -> ${encontrado.referencia}`);
+    } else {
+      console.log(`❌ No encontrado: ${prodFactura.nombre} (${prodFactura.codigo || 'sin código'})`);
+    }
 
     return encontrado || null;
   }

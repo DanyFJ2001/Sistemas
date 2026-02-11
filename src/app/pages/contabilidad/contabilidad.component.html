@@ -476,24 +476,27 @@
       <div class="productos-detectados" *ngIf="productosDetectados.length > 0">
         <h4>✅ Productos Detectados ({{ productosDetectados.length }})</h4>
         <div class="table-responsive">
-          <table class="mini-table">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio Unit.</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let prod of productosDetectados">
-                <td>{{ prod.nombre }}</td>
-                <td><strong>{{ prod.cantidad }}</strong></td>
-                <td>{{ prod.precio ? ('$' + prod.precio.toFixed(2)) : '-' }}</td>
-                <td>{{ prod.total ? ('$' + prod.total.toFixed(2)) : '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- En el modal de factura, reemplaza la tabla -->
+<table class="mini-table">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Producto</th>
+      <th>Cantidad</th>
+      <th>Precio Unit.</th>
+      <th>Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let prod of productosDetectados">
+      <td><strong>{{ prod.codigo || '-' }}</strong></td>
+      <td>{{ prod.nombre }}</td>
+      <td><strong>{{ prod.cantidad }}</strong></td>
+      <td>{{ prod.precio ? ('$' + prod.precio.toFixed(2)) : '-' }}</td>
+      <td>{{ prod.total ? ('$' + prod.total.toFixed(2)) : '-' }}</td>
+    </tr>
+  </tbody>
+</table>
         </div>
 
         <div class="alert alert-info">
