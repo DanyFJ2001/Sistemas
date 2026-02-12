@@ -1,0 +1,306 @@
+<!-- Progress Bar -->
+<div class="progress-bar">
+  <div class="progress-fill" [style.width.%]="scrollProgress"></div>
+</div>
+
+<!-- Mobile Sidebar Toggle -->
+<button class="sidebar-toggle" (click)="toggleSidebar()" [class.active]="sidebarOpen">
+  <span></span><span></span><span></span>
+</button>
+
+
+<!-- Sidebar Navigation -->
+<nav class="sidebar" [class.open]="sidebarOpen">  
+  <div class="sidebar-header">
+    <div class="sidebar-logo"><div class="logo-placeholder">S</div></div>
+    <span class="sidebar-title">Índice</span>
+  </div>
+  <ul class="sidebar-nav">
+    <li *ngFor="let item of sidebarItems" [class.active]="activeSection === item.id" (click)="scrollTo(item.id)">
+      <span class="nav-icon">{{ item.icon }}</span>
+      <span class="nav-label">{{ item.label }}</span>
+      <span class="nav-indicator"></span>
+    </li>
+  </ul>
+  <div class="sidebar-footer">
+    <button class="quiz-btn-sidebar" (click)="goToQuiz()">📝 Ir a Evaluación</button>
+  </div>
+</nav>
+
+<div class="sidebar-overlay" *ngIf="sidebarOpen" (click)="toggleSidebar()">
+    
+</div>
+<main class="main-content">
+    <button 
+    class="btn-login-sticky" 
+    routerLink="/login" 
+    title="Volver al login">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+        <polyline points="10 17 15 12 10 7"></polyline>
+        <line x1="15" y1="12" x2="3" y2="12"></line>
+    </svg>
+    <span class="btn-text">Iniciar Sesión</span>
+    </button>
+  <!-- HERO -->
+  <section id="hero" class="hero-section">
+    <div class="hero-bg">
+      <div class="grid-overlay"></div>
+      <div class="particle p1"></div><div class="particle p2"></div><div class="particle p3"></div>
+      <div class="particle p4"></div><div class="particle p5"></div>
+      <div class="floating-shape shape1"></div><div class="floating-shape shape2"></div><div class="floating-shape shape3"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge animate-on-scroll">INDUCCIÓN CORPORATIVA</div>
+      <h1 class="hero-title animate-on-scroll">Área de <span class="gradient-text">Sistemas</span></h1>
+      <p class="hero-subtitle animate-on-scroll">Conoce la estructura, funciones, plataformas y flujos de trabajo que impulsan la tecnología de <strong>Segurilab</strong>.</p>
+      <div class="hero-actions animate-on-scroll">
+        <button class="btn-primary" (click)="scrollTo('estructura')">Explorar Contenido <span class="btn-arrow">→</span></button>
+        <button class="btn-secondary" (click)="goToQuiz()">Banco de Preguntas <span class="btn-arrow">→</span></button>
+      </div>
+      <div class="hero-stats animate-on-scroll">
+        <div class="stat"><span class="stat-number">10+</span><span class="stat-label">Plataformas</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-number">5</span><span class="stat-label">Sucursales</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-number">3</span><span class="stat-label">Integrantes</span></div>
+      </div>
+    </div>
+    <div class="scroll-indicator" (click)="scrollTo('estructura')">
+      <div class="mouse"><div class="wheel"></div></div>
+      <span>Desliza para continuar</span>
+    </div>
+  </section>
+
+  <!-- ESTRUCTURA -->
+  <section id="estructura" class="section">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-tag">01</span>
+        <h2 class="section-title">Estructura del Área</h2>
+        <p class="section-desc">El Área de Sistemas funciona como un equipo integrado donde todos los miembros colaboran en los diferentes procesos, organizándose según las necesidades del momento.</p>
+      </div>
+      <div class="team-grid">
+        <div *ngFor="let member of teamMembers; let i = index" class="team-card animate-on-scroll" [style.animationDelay]="(i * 150) + 'ms'">
+          <div class="card-glow"></div>
+          <div class="member-avatar"><span>{{ member.icon }}</span></div>
+          <h3 class="member-name">{{ member.name }}</h3>
+          <p class="member-role">{{ member.role }}</p>
+          <div class="member-line"></div>
+        </div>
+      </div>
+      <div class="info-callout animate-on-scroll">
+        <div class="callout-icon">💡</div>
+        <div class="callout-content"><strong>Importante:</strong> José y Dany trabajan como equipo realizando las mismas funciones y organizándose según los procesos del momento. Mateo Alvarado, como desarrollador principal, trabaja de forma remota desde Argentina enfocado en la plataforma MEDESP.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLATAFORMAS -->
+  <section id="plataformas" class="section section-dark">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-tag">02</span>
+        <h2 class="section-title">Plataformas y Sistemas</h2>
+        <p class="section-desc">El Área de Sistemas administra y da soporte a más de 10 plataformas que sustentan las operaciones de Segurilab.</p>
+      </div>
+      <div class="platforms-grid">
+        <div *ngFor="let platform of platforms; let i = index" class="platform-card animate-on-scroll" [style.animationDelay]="(i * 100) + 'ms'">
+          <div class="platform-icon">{{ platform.icon }}</div>
+          <h3 class="platform-name">{{ platform.name }}</h3>
+          <p class="platform-desc">{{ platform.description }}</p>
+          <div class="platform-tags"><span *ngFor="let tag of platform.tags" class="tag">{{ tag }}</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INFRAESTRUCTURA -->
+  <section id="infraestructura" class="section">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-tag">03</span>
+        <h2 class="section-title">Infraestructura y Redes</h2>
+        <p class="section-desc">La columna vertebral tecnológica de Segurilab: servidores, redes, data center y comunicaciones entre sucursales.</p>
+      </div>
+      <div class="infra-grid">
+        <div class="infra-card animate-on-scroll"><div class="infra-icon-wrap"><div class="infra-icon">🖥️</div></div><h3>Servidores</h3><p>Dos servidores (principal y secundario) gestionados a través de máquinas virtuales en <strong>Proxmox</strong>.</p></div>
+        <div class="infra-card animate-on-scroll" style="animation-delay:150ms"><div class="infra-icon-wrap"><div class="infra-icon">🗄️</div></div><h3>Data Center</h3><p>Centro de datos con amplia cantidad de equipos y herramientas para soluciones informáticas del día a día.</p></div>
+        <div class="infra-card animate-on-scroll" style="animation-delay:300ms"><div class="infra-icon-wrap"><div class="infra-icon">🔒</div></div><h3>Red Local y VPN</h3><p>Servidores accesibles en red local mediante IPs específicas. Acceso externo vía <strong>VPN en Sophos</strong>.</p></div>
+        <div class="infra-card animate-on-scroll" style="animation-delay:450ms"><div class="infra-icon-wrap"><div class="infra-icon">📞</div></div><h3>Telefonía IP</h3><p>Teléfonos IP en todas las sucursales, vinculados mediante <strong>VPN y Mikrotiks</strong>.</p></div>
+      </div>
+      <div class="sucursales-map animate-on-scroll">
+        <h3 class="sucursales-title">Sucursales Conectadas</h3>
+        <div class="sucursales-list">
+          <div class="sucursal-item"><div class="sucursal-dot main"></div><span>Chiris <small>(Central)</small></span></div>
+          <div class="sucursal-connector"></div>
+          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Calderón</span></div>
+          <div class="sucursal-connector"></div>
+          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Praderas</span></div>
+          <div class="sucursal-connector"></div>
+          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Hospital del Sur</span></div>
+          <div class="sucursal-connector"></div>
+          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Michelena</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOPORTE -->
+  <section id="soporte" class="section section-dark">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">04</span><h2 class="section-title">Soporte Técnico</h2></div>
+      <div class="support-grid">
+        <div class="support-item animate-on-scroll"><div class="support-icon">🖨️</div><div><h4>Impresoras y periféricos</h4><p>Resolución de problemas con impresoras de papel, etiquetas y periféricos.</p></div></div>
+        <div class="support-item animate-on-scroll" style="animation-delay:100ms"><div class="support-icon">📧</div><div><h4>Correo electrónico</h4><p>Configuración de acceso, puertos IMAP/SMTP y resolución de problemas.</p></div></div>
+        <div class="support-item animate-on-scroll" style="animation-delay:200ms"><div class="support-icon">🌐</div><div><h4>Internet y conectividad</h4><p>Diagnóstico y solución de problemas de conexión a internet y red local.</p></div></div>
+        <div class="support-item animate-on-scroll" style="animation-delay:300ms"><div class="support-icon">💿</div><div><h4>Instalación de software</h4><p>Instalación de SO (Windows), Office y gestión de licencias.</p></div></div>
+        <div class="support-item animate-on-scroll" style="animation-delay:400ms"><div class="support-icon">📱</div><div><h4>Teléfonos empresariales</h4><p>Configuración de credenciales y acceso a plataformas en dispositivos de asesores.</p></div></div>
+        <div class="support-item animate-on-scroll" style="animation-delay:500ms"><div class="support-icon">🖥️</div><div><h4>Soporte remoto (AnyDesk)</h4><p>Asistencia remota para sucursales externas a Chiris.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MANTENIMIENTO -->
+  <section id="mantenimiento" class="section">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">05</span><h2 class="section-title">Mantenimiento y Electrónica</h2></div>
+      <div class="maint-columns">
+        <div class="maint-card animate-on-scroll"><div class="maint-header"><span class="maint-icon">🔄</span><h3>Mantenimiento Preventivo</h3></div><p>Mantenimiento regular en Chiris. Para sucursales externas se maneja un <strong>calendario programado</strong>.</p></div>
+        <div class="maint-card animate-on-scroll" style="animation-delay:150ms"><div class="maint-header"><span class="maint-icon">🔨</span><h3>Mantenimiento Correctivo</h3></div><p>Reparación de equipos ante fallas, reemplazo de componentes y restauración de funcionalidad.</p></div>
+        <div class="maint-card animate-on-scroll" style="animation-delay:300ms"><div class="maint-header"><span class="maint-icon">⚡</span><h3>Electrónica Básica</h3></div><p>Reparación de circuitos, empalmes de conexiones, paneles de puertas electrónicas y ensamblaje.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESARROLLO -->
+  <section id="desarrollo" class="section section-dark">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">06</span><h2 class="section-title">Desarrollo de Soluciones</h2><p class="section-desc">El área diseña, desarrolla y mantiene soluciones informáticas propias.</p></div>
+      <div class="dev-list">
+        <div class="dev-item animate-on-scroll"><div class="dev-number">01</div><div class="dev-content"><h4>Plataformas web internas</h4><p>Inventario del data center, turnero y módulos de contabilidad.</p></div></div>
+        <div class="dev-item animate-on-scroll" style="animation-delay:100ms"><div class="dev-number">02</div><div class="dev-content"><h4>Scripts y visión artificial</h4><p>Scripts personalizados y soluciones de visión artificial según requerimientos.</p></div></div>
+        <div class="dev-item animate-on-scroll" style="animation-delay:200ms"><div class="dev-number">03</div><div class="dev-content"><h4>Aplicaciones nuevas</h4><p>Coordinación para nuevas apps (ej: app de gerenciamiento de viajes para conductores).</p></div></div>
+        <div class="dev-item animate-on-scroll" style="animation-delay:300ms"><div class="dev-number">04</div><div class="dev-content"><h4>Consultas SQL y queries</h4><p>Consultas en BD por solicitud de Gerencia General (Dra. Sofía Alarcón) a través de Navicat.</p></div></div>
+        <div class="dev-item animate-on-scroll" style="animation-delay:400ms"><div class="dev-number">05</div><div class="dev-content"><h4>Cotizaciones técnicas</h4><p>Cotizaciones de equipos, protectores, adaptadores, canaletas y componentes tecnológicos.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLUJOS -->
+  <section id="flujos" class="section">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">07</span><h2 class="section-title">Flujos de Trabajo</h2><p class="section-desc">Procesos estandarizados que garantizan una gestión ordenada y eficiente.</p></div>
+      <div class="flow-block animate-on-scroll">
+        <h3 class="flow-title"><span class="flow-icon">🟢</span> Nuevo Ingreso de Personal</h3>
+        <div class="flow-steps">
+          <div *ngFor="let step of flujoNuevoIngreso; let i = index; let last = last" class="flow-step">
+            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
+            <div class="step-content"><p>{{ step }}</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-block animate-on-scroll">
+        <h3 class="flow-title"><span class="flow-icon">🔴</span> Salida de Personal</h3>
+        <div class="flow-steps">
+          <div *ngFor="let step of flujoSalida; let i = index; let last = last" class="flow-step">
+            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
+            <div class="step-content"><p>{{ step }}</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-block animate-on-scroll">
+        <h3 class="flow-title"><span class="flow-icon">🔵</span> Solicitud de Soporte</h3>
+        <div class="flow-steps">
+          <div *ngFor="let step of flujoSoporte; let i = index; let last = last" class="flow-step">
+            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
+            <div class="step-content"><p>{{ step }}</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-block animate-on-scroll">
+        <h3 class="flow-title"><span class="flow-icon">🟡</span> Solicitud de Accesos</h3>
+        <div class="flow-steps">
+          <div class="flow-step"><div class="step-marker"><span class="step-number">1</span><div class="step-line"></div></div><div class="step-content"><p>El empleado o jefe de área solicita el acceso requerido.</p></div></div>
+          <div class="flow-step"><div class="step-marker"><span class="step-number">2</span><div class="step-line"></div></div><div class="step-content"><p>La solicitud debe venir respaldada por autorización de Gerencia (Dra. Sofía Alarcón) o RRHH.</p></div></div>
+          <div class="flow-step"><div class="step-marker"><span class="step-number">3</span><div class="step-line"></div></div><div class="step-content"><p>El Área de Sistemas crea o modifica los permisos en la plataforma correspondiente.</p></div></div>
+          <div class="flow-step"><div class="step-marker"><span class="step-number">4</span></div><div class="step-content"><p>Se notifica al solicitante con las credenciales o confirmación.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CANALES -->
+  <section id="canales" class="section section-dark">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">08</span><h2 class="section-title">Canales de Soporte</h2></div>
+      <div class="channels-grid">
+        <div class="channel-card main-channel animate-on-scroll"><div class="channel-badge">Canal Oficial</div><div class="channel-icon">✉️</div><h4>Correo Electrónico</h4><p>Canal oficial para solicitudes formales. Toda petición queda documentada.</p></div>
+        <div class="channel-card animate-on-scroll" style="animation-delay:100ms"><div class="channel-badge secondary">Más utilizado</div><div class="channel-icon">💬</div><h4>WhatsApp</h4><p>Canal donde se recibe la mayoría de solicitudes del día a día.</p></div>
+        <div class="channel-card animate-on-scroll" style="animation-delay:200ms"><div class="channel-badge upcoming">Próximamente</div><div class="channel-icon">🎫</div><h4>Sistema de Tickets</h4><p>Se está implementando un canal de tickets dentro de esta plataforma.</p></div>
+        <div class="channel-card animate-on-scroll" style="animation-delay:300ms"><div class="channel-icon">🖥️</div><h4>AnyDesk (Remoto)</h4><p>Soporte remoto para sucursales externas a Chiris.</p></div>
+        <div class="channel-card animate-on-scroll" style="animation-delay:400ms"><div class="channel-icon">🎓</div><h4>SeguriLearn</h4><p>Recurso de autocapacitación y consulta antes de solicitar soporte.</p></div>
+        <div class="channel-card animate-on-scroll" style="animation-delay:500ms"><div class="channel-icon">👤</div><h4>Jairo Troya</h4><p>Asistente de Gerencia. Canal exclusivo para usuarios y permisos de LABINT.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LINEAMIENTOS -->
+  <section id="lineamientos" class="section">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">09</span><h2 class="section-title">Lineamientos Generales</h2></div>
+      <div class="lineamientos-list">
+        <div class="lineamiento-item animate-on-scroll"><div class="lineamiento-icon">🔐</div><p>Toda instalación de software en equipos personales requiere <strong>autorización expresa</strong> de la Gerencia General (Dra. Sofía Alarcón).</p></div>
+        <div class="lineamiento-item animate-on-scroll" style="animation-delay:80ms"><div class="lineamiento-icon">👑</div><p>Solo el Área de Sistemas y Gerencia poseen <strong>permisos de administrador</strong> en las plataformas.</p></div>
+        <div class="lineamiento-item animate-on-scroll" style="animation-delay:160ms"><div class="lineamiento-icon">📶</div><p>Flujo de soporte: <strong>autogestión → consulta con compañeros → escalamiento a Sistemas</strong> (solo nivel intermedio o superior).</p></div>
+        <div class="lineamiento-item animate-on-scroll" style="animation-delay:240ms"><div class="lineamiento-icon">🕐</div><p>El Área de Sistemas <strong>no brinda soporte fuera del horario laboral</strong>.</p></div>
+        <div class="lineamiento-item animate-on-scroll" style="animation-delay:320ms"><div class="lineamiento-icon">🔑</div><p>Problemas con <strong>LABINT</strong> (usuarios/permisos) → contactar a <strong>Jairo Troya</strong>, no a Sistemas.</p></div>
+        <div class="lineamiento-item animate-on-scroll" style="animation-delay:400ms"><div class="lineamiento-icon">📩</div><p>El <strong>correo electrónico</strong> es el canal oficial. Sistema de tickets próximamente.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESPONSABILIDADES -->
+  <section id="responsabilidades" class="section section-dark">
+    <div class="section-container">
+      <div class="section-header animate-on-scroll"><span class="section-tag">10</span><h2 class="section-title">Responsabilidades</h2></div>
+      <div class="resp-columns">
+        <div class="resp-card sistemas animate-on-scroll">
+          <div class="resp-header"><h3>🛠️ Área de Sistemas</h3></div>
+          <ul class="resp-list">
+            <li>Garantizar el correcto funcionamiento de servidores, redes y plataformas.</li>
+            <li>Crear, modificar y deshabilitar accesos de usuarios.</li>
+            <li>Mantener la seguridad informática (Sophos).</li>
+            <li>Realizar mantenimiento preventivo y correctivo.</li>
+            <li>Desarrollar soluciones informáticas internas.</li>
+            <li>Gestionar inventario del data center y asignación de equipos.</li>
+            <li>Administrar SeguriLearn (cursos y certificados).</li>
+            <li>Atender requerimientos de Gerencia General.</li>
+          </ul>
+        </div>
+        <div class="resp-card colaboradores animate-on-scroll" style="animation-delay:200ms">
+          <div class="resp-header"><h3>👤 Colaboradores</h3></div>
+          <ul class="resp-list">
+            <li><strong>Autocapacitarse</strong> en las herramientas asignadas (SeguriLearn).</li>
+            <li><strong>Intentar resolver problemas</strong> antes de contactar a Sistemas.</li>
+            <li><strong>No depender de Sistemas</strong> para problemas repetitivos o simples.</li>
+            <li><strong>Solicitar accesos</strong> con justificación y autorización.</li>
+            <li><strong>Cuidar los equipos</strong> asignados y reportar fallas.</li>
+            <li><strong>No compartir credenciales</strong> de acceso.</li>
+            <li><strong>Respetar los permisos</strong> asignados a su función.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-bg"><div class="cta-particle cp1"></div><div class="cta-particle cp2"></div><div class="cta-particle cp3"></div></div>
+    <div class="cta-content animate-on-scroll">
+      <h2>¿Listo para la evaluación?</h2>
+      <p>Pon a prueba tus conocimientos con nuestro banco de preguntas sobre el Área de Sistemas de Segurilab.</p>
+      <button class="btn-primary btn-lg" (click)="goToQuiz()">📝 Iniciar Evaluación <span class="btn-arrow">→</span></button>
+    </div>
+  </section>
+</main>
