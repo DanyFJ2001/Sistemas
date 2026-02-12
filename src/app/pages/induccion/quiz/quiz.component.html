@@ -1,97 +1,93 @@
-<div class="quiz-wrapper" [class.animate-in]="animateIn">
-  <div class="quiz-topbar">
-    <button class="back-btn" (click)="goBack()">← Volver al contenido</button>
-    <div class="quiz-progress-info">{{ answeredCount }} / {{ totalQuestions }} respondidas</div>
+<div class="quiz-wrap" [class.live]="animateIn">
+
+  <!-- Top -->
+  <div class="q-top">
+    <button class="q-back" (click)="goBack()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      Volver al contenido
+    </button>
+    <span class="q-score" *ngIf="answeredCount > 0">{{ correctCount }}/{{ answeredCount }} correctas</span>
   </div>
 
-  <div class="quiz-progress-bar">
-    <div class="quiz-progress-fill" [style.width.%]="progressPercent"></div>
+  <!-- Header -->
+  <div class="q-header rv up">
+    <span class="q-tag">PREGUNTAS FRECUENTES</span>
+    <h1>¿Cuánto sabes del Área de Sistemas?</h1>
+    <p>Selecciona una respuesta en cada tarjeta para descubrir si es correcta.</p>
   </div>
 
-  <!-- RESULTS -->
-  <div *ngIf="showResults" class="results-container">
-    <div class="results-card" [ngClass]="getScoreClass()">
-      <div class="results-content">
-        <div class="score-circle">
-          <svg viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"
-                    stroke-dasharray="339.292" [attr.stroke-dashoffset]="getStrokeDashoffset()" transform="rotate(-90 60 60)" class="score-ring"/>
-          </svg>
-          <div class="score-text">
-            <span class="score-num">{{ score }}</span>
-            <span class="score-den">/ {{ totalQuestions }}</span>
+  <!-- Card Grid -->
+  <div class="card-grid">
+    <div *ngFor="let card of cards; let i = index"
+         class="flip-wrapper rv up"
+         [class.is-flipped]="card.flipped"
+         [style.transitionDelay]="(i * 55) + 'ms'">
+      <div class="flip-inner">
+
+        <!-- ══════ FRONT ══════ -->
+        <div class="flip-front">
+          <div class="card-top-line"></div>
+          <div class="card-head">
+            <span class="card-num">{{ card.id < 10 ? '0' + card.id : card.id }}</span>
+            <svg class="card-ico" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path [attr.d]="getIconPath(card.id)"/>
+            </svg>
+          </div>
+          <h3 class="card-title">{{ card.shortTitle }}</h3>
+          <p class="card-question">{{ card.question }}</p>
+          <div class="card-opts">
+            <button *ngFor="let opt of card.options; let oi = index"
+                    class="card-opt"
+                    [class.picked]="card.selectedIndex === oi"
+                    (click)="selectOption(card, oi)">
+              <span class="opt-letter">{{ letter(oi) }}</span>
+              <span class="opt-label">{{ opt }}</span>
+            </button>
           </div>
         </div>
-        <h2>{{ getScoreMessage() }}</h2>
-        <p class="score-percentage">{{ ((score / totalQuestions) * 100).toFixed(0) }}% de aciertos</p>
-        <div class="results-actions">
-          <button class="btn-primary" (click)="resetQuiz()">🔄 Intentar de nuevo</button>
-          <button class="btn-secondary" (click)="goBack()">📖 Volver al contenido</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="review-section">
-      <h3 class="review-title">Revisión detallada</h3>
-      <div *ngFor="let q of questions; let i = index" class="review-item">
-        <div class="review-header">
-          <span class="review-number">{{ i + 1 }}</span>
-          <span class="review-status" [class.correct]="q.selectedIndex !== null && q.options[q.selectedIndex!].isCorrect" [class.incorrect]="q.selectedIndex !== null && !q.options[q.selectedIndex!].isCorrect">
-            {{ q.selectedIndex !== null && q.options[q.selectedIndex!].isCorrect ? '✓ Correcto' : '✗ Incorrecto' }}
-          </span>
-        </div>
-        <p class="review-question">{{ q.question }}</p>
-        <div class="review-options">
-          <div *ngFor="let opt of q.options; let oi = index" class="review-option" [class.selected]="q.selectedIndex === oi" [class.is-correct]="opt.isCorrect" [class.is-wrong]="q.selectedIndex === oi && !opt.isCorrect">
-            <span class="review-letter">{{ getOptionLetter(oi) }}</span>
-            <span>{{ opt.text }}</span>
-            <span *ngIf="opt.isCorrect" class="correct-badge">✓</span>
+        <!-- ══════ BACK ══════ -->
+        <div class="flip-back" [class.back-ok]="isCorrect(card)" [class.back-fail]="!isCorrect(card)">
+          <div class="card-top-line" [class.line-ok]="isCorrect(card)" [class.line-fail]="!isCorrect(card)"></div>
+
+          <div class="back-badge">
+            <svg *ngIf="isCorrect(card)" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg *ngIf="!isCorrect(card)" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </div>
+
+          <h3 class="back-status">{{ isCorrect(card) ? '¡Correcto!' : 'Incorrecto' }}</h3>
+
+          <div class="back-answer" *ngIf="!isCorrect(card)">
+            <span class="ba-label">Respuesta correcta:</span>
+            <span class="ba-text">{{ card.options[card.correctIndex] }}</span>
+          </div>
+
+          <p class="back-explain">{{ card.explanation }}</p>
+
+          <button class="back-flip-btn" (click)="flipBack(card)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 2v6h6"/><path d="M2.5 8C5.5 3.5 11 1.5 16 3.5S23 11 21 16s-8 8.5-13 6.5"/></svg>
+            Ver pregunta
+          </button>
         </div>
+
       </div>
     </div>
   </div>
 
-  <!-- QUIZ -->
-  <div *ngIf="!showResults" class="quiz-container">
-    <div class="quiz-header">
-      <div class="quiz-badge">EVALUACIÓN</div>
-      <h1>Banco de Preguntas</h1>
-      <p>Área de Sistemas — Inducción Corporativa</p>
-    </div>
-
-    <div class="quiz-body">
-      <div class="page-indicator">Página {{ currentPage + 1 }} de {{ totalPages }}</div>
-
-      <div *ngFor="let q of currentQuestions; let qi = index" class="question-card" [style.animationDelay]="(qi * 80) + 'ms'">
-        <div class="question-header">
-          <span class="question-number">{{ q.id }}</span>
-          <span class="question-text">{{ q.question }}</span>
-        </div>
-        <div class="options-list">
-          <div *ngFor="let opt of q.options; let oi = index" class="option-item"
-               [class.selected]="q.selectedIndex === oi"
-               [class.correct]="quizSubmitted && opt.isCorrect"
-               [class.wrong]="quizSubmitted && q.selectedIndex === oi && !opt.isCorrect"
-               (click)="selectOption(q, oi)">
-            <span class="option-letter">{{ getOptionLetter(oi) }}</span>
-            <span class="option-text">{{ opt.text }}</span>
-            <span class="option-check" *ngIf="q.selectedIndex === oi">●</span>
-          </div>
-        </div>
+  <!-- Summary -->
+  <div class="q-summary rv up" *ngIf="answeredCount === cards.length">
+    <div class="sum-card" [class.sum-great]="correctCount >= 10" [class.sum-ok]="correctCount >= 7 && correctCount < 10" [class.sum-low]="correctCount < 7">
+      <div class="sum-num">
+        <strong>{{ correctCount }}</strong><span>/ {{ cards.length }}</span>
       </div>
-
-      <div class="quiz-nav">
-        <button class="nav-btn" (click)="prevPage()" [disabled]="currentPage === 0">← Anterior</button>
-        <div class="page-dots">
-          <span *ngFor="let p of pageArray; let pi = index" class="page-dot" [class.active]="pi === currentPage" (click)="currentPage = pi"></span>
-        </div>
-        <button *ngIf="currentPage < totalPages - 1" class="nav-btn" (click)="nextPage()">Siguiente →</button>
-        <button *ngIf="currentPage === totalPages - 1" class="nav-btn submit-btn" [disabled]="!allAnswered" (click)="submitQuiz()">📝 Enviar Evaluación</button>
+      <p *ngIf="correctCount >= 10">Excelente. Dominas el contenido del Área de Sistemas.</p>
+      <p *ngIf="correctCount >= 7 && correctCount < 10">Buen trabajo. Revisa algunos temas para reforzar.</p>
+      <p *ngIf="correctCount < 7">Necesitas repasar el material de inducción.</p>
+      <div class="sum-btns">
+        <button class="btn-fill" (click)="resetAll()">Intentar de nuevo</button>
+        <button class="btn-ghost" (click)="goBack()">Volver al contenido</button>
       </div>
-
-      <p *ngIf="currentPage === totalPages - 1 && !allAnswered" class="warning-text">⚠️ Debes responder todas las preguntas antes de enviar.</p>
     </div>
   </div>
+
 </div>

@@ -1,214 +1,179 @@
 import {
-  Component,
-  OnInit,
-  OnDestroy,
-  HostListener,
-  ElementRef,
-  AfterViewInit
+  Component, OnDestroy, HostListener, ElementRef, AfterViewInit
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-
-interface TeamMember {
-  name: string;
-  role: string;
-  icon: string;
-}
-
-interface Platform {
-  name: string;
-  description: string;
-  icon: string;
-  tags: string[];
-}
-
-interface SidebarItem {
-  id: string;
-  label: string;
-  icon: string;
-}
 
 @Component({
   selector: 'app-induccion',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './induccion.component.html',
   styleUrls: ['./induccion.component.css']
 })
-export class InduccionComponent implements OnInit, AfterViewInit, OnDestroy {
+export class InduccionComponent implements AfterViewInit, OnDestroy {
 
   activeSection = 'hero';
   sidebarOpen = false;
   scrollProgress = 0;
-  animatedSections: Set<string> = new Set();
-  private observer!: IntersectionObserver;
-  private animObserver!: IntersectionObserver;
+  private sectionObs!: IntersectionObserver;
+  private revealObs!: IntersectionObserver;
 
-  sidebarItems: SidebarItem[] = [
-    { id: 'hero', label: 'Inicio', icon: '🏠' },
-    { id: 'estructura', label: 'Estructura del Área', icon: '🏗️' },
-    { id: 'plataformas', label: 'Plataformas y Sistemas', icon: '💻' },
-    { id: 'infraestructura', label: 'Infraestructura y Redes', icon: '🌐' },
-    { id: 'soporte', label: 'Soporte Técnico', icon: '🔧' },
-    { id: 'mantenimiento', label: 'Mantenimiento', icon: '⚙️' },
-    { id: 'desarrollo', label: 'Desarrollo', icon: '🚀' },
-    { id: 'flujos', label: 'Flujos de Trabajo', icon: '📋' },
-    { id: 'canales', label: 'Canales de Soporte', icon: '📡' },
-    { id: 'lineamientos', label: 'Lineamientos', icon: '📜' },
-    { id: 'responsabilidades', label: 'Responsabilidades', icon: '✅' }
+  sidebarItems = [
+    { id: 'hero', label: 'Inicio' },
+    { id: 'equipo', label: 'Nuestro Equipo' },
+    { id: 'plataformas', label: 'Plataformas' },
+    { id: 'funciones', label: 'Qué Hacemos' },
+    { id: 'flujos', label: 'Flujos de Trabajo' },
+    { id: 'canales', label: 'Canales de Soporte' },
+    { id: 'lineamientos', label: 'Lo Que Debes Saber' },
   ];
 
-  teamMembers: TeamMember[] = [
-    { name: 'José Gallardo', role: 'Sistemas & Soporte', icon: 'JG' },
-    { name: 'Dany Fernández', role: 'Sistemas & Soporte', icon: 'DF' },
-    { name: 'Mateo Alvarado', role: 'Desarrollo Principal (Remoto — Argentina)', icon: 'MA' }
-  ];
+team = [
+  {
+    name: 'José Gallardo',
+    role: 'Sistemas & Soporte',
+    initials: 'JG',
+    photo: '../../../assets/images/jose_avatar.jpeg'
+  },
+  {
+    name: 'Dany Fernández',
+    role: 'Sistemas & Soporte',
+    initials: 'DF',
+    photo: '../../../assets/images/dany_avatar.jpeg'
+  },
+  {
+    name: 'Mateo Alvarado',
+    role: 'Desarrollo (Remoto — Argentina)',
+    initials: 'MA',
+    photo: '../../../assets/images/mateo_avatar.png'
+  }
+];
 
-  platforms: Platform[] = [
+
+  platforms = [
     {
-      name: 'MEDESP',
-      description: 'Software propio para gestión de historias clínicas, agendamientos y administración de pacientes. Creación de usuarios, asignación de permisos, reseteo de contraseñas y gestión de horarios médicos.',
-      icon: '🏥',
-      tags: ['Software Propio', 'Historias Clínicas', 'Agendamientos']
+      name: 'MEDESP', cls: 'c-blue',
+      summary: 'Gestión de historias clínicas, agendamientos y administración de pacientes.',
+      points: ['Creación de usuarios con plantilla de datos completa', 'Permisos por perfil y sucursal', 'Gestión de horarios médicos', 'Firma digital P12 para médicos ocupacionales']
     },
     {
-      name: 'LABINT',
-      description: 'Software externo para recepción y visualización de resultados de laboratorio, rayos X y exámenes. El Área de Sistemas garantiza el funcionamiento del servidor e instala la aplicación. La creación de usuarios la gestiona Jairo Troya (Asistente de Gerencia).',
-      icon: '🔬',
-      tags: ['Software Externo', 'Resultados', 'Laboratorio']
+      name: 'LABINT', cls: 'c-teal',
+      summary: 'Resultados de laboratorio, rayos X y exámenes complementarios.',
+      points: ['Sistemas garantiza el funcionamiento del servidor', 'Usuarios y permisos los gestiona Jairo Troya', 'Instalación en equipos personales requiere autorización de Gerencia']
     },
     {
-      name: 'Bitrix (CRM)',
-      description: 'CRM enfocado en el Área Comercial: contactos, compañías, negociaciones y cotizaciones. Solo Sistemas y Gerencia tienen acceso como administrador. Incluye integración con WhatsApp CRM y generación de KPIs.',
-      icon: '📊',
-      tags: ['CRM', 'Área Comercial', 'KPIs']
+      name: 'Bitrix CRM', cls: 'c-indigo',
+      summary: 'Gestión comercial: contactos, negociaciones, cotizaciones y KPIs.',
+      points: ['Solo Sistemas y Gerencia son administradores', 'Integración con WhatsApp CRM', 'Capacitaciones disponibles en SeguriLearn']
     },
     {
-      name: 'SeguriCloud',
-      description: 'Drive en la nube corporativo donde se resguarda toda la documentación de la empresa. Se gestionan accesos, permisos por carpeta/departamento y links compartidos para convenios con empresas externas.',
-      icon: '☁️',
-      tags: ['Almacenamiento', 'Documentación', 'Permisos']
+      name: 'SeguriCloud', cls: 'c-cyan',
+      summary: 'Almacenamiento en la nube para toda la documentación corporativa.',
+      points: ['Accesos por carpeta y departamento', 'Links compartidos para convenios externos']
     },
     {
-      name: 'Zimbra',
-      description: 'Servidor de correos electrónicos empresariales. Formato: [inicial].[apellido]@segurilab.s — Se configuran puertos IMAP/SMTP para acceso en Outlook, Gmail u otras plataformas.',
-      icon: '✉️',
-      tags: ['Correo', 'Credenciales', 'Comunicación']
+      name: 'Zimbra', cls: 'c-violet',
+      summary: 'Servidor de correo electrónico empresarial.',
+      points: ['Formato: [inicial].[apellido]@segurilab.s', 'Configuración de puertos IMAP/SMTP']
     },
     {
-      name: 'Sophos',
-      description: 'Gestión de firewall, antivirus, VPN y antispam. Filtrado de correos maliciosos, gestión de cuarentena, VPN para acceso remoto a servidores y ciberseguridad general.',
-      icon: '🛡️',
-      tags: ['Seguridad', 'Firewall', 'VPN']
+      name: 'Sophos', cls: 'c-red',
+      summary: 'Seguridad informática: firewall, antivirus, VPN y antispam.',
+      points: ['Filtrado de correos maliciosos', 'VPN para acceso remoto a servidores']
     },
     {
-      name: 'SeguriLearn',
-      description: 'Plataforma de capacitaciones en WordPress. Se cargan cursos, videos, documentos, evaluaciones y se emiten certificados automáticos al aprobar.',
-      icon: '🎓',
-      tags: ['Capacitaciones', 'Cursos', 'Certificados']
+      name: 'SeguriLearn', cls: 'c-green',
+      summary: 'Plataforma de capacitaciones con cursos, evaluaciones y certificados.',
+      points: ['Cursos sobre pre-admisiones, recepción de resultados, Bitrix y más', 'Certificados automáticos al aprobar']
     },
     {
-      name: 'Página Web Segurilab',
-      description: 'Sitio web institucional público. Gestión de diseño, contenido, perfiles de médicos vinculados con MEDESP y códigos QR para agendamiento por especialidad.',
-      icon: '🌍',
-      tags: ['Web Pública', 'Dominio', 'QR']
-    },
-    {
-      name: 'Inventario Data Center',
-      description: 'Plataforma web propia para gestionar el inventario de todos los equipos tecnológicos del data center y sucursal Chiris. Vinculada con contabilidad de activos fijos.',
-      icon: '🗄️',
-      tags: ['Desarrollo Propio', 'Inventario', 'Activos']
-    },
-    {
-      name: 'Turnero',
-      description: 'Sistema de gestión de turnos desarrollado, desplegado y mantenido internamente por el Área de Sistemas. Completamente operativo.',
-      icon: '🎫',
-      tags: ['Desarrollo Propio', 'Turnos', 'Operativo']
+      name: 'Página Web', cls: 'c-orange',
+      summary: 'Sitio institucional público con perfiles médicos y agendamiento.',
+      points: ['Perfiles de médicos vinculados con MEDESP', 'Códigos QR para agendamiento por especialidad']
     }
   ];
 
-  flujoNuevoIngreso: string[] = [
-    'RRHH o Gerencia comunica el ingreso del nuevo colaborador.',
-    'Se solicita la plantilla de datos completa (nombre, apellidos, cédula, fecha de nacimiento, estado civil, tipo de sangre, email, teléfono, área, especialidad, sucursal, dirección; firma P12 si es médico ocupacional).',
-    'Se crean credenciales según perfil: correo empresarial (Zimbra), usuario MEDESP, acceso a SeguriCloud, usuario Bitrix (si aplica), horarios MEDESP (si es médico).',
+  flujoIngreso = [
+    'RRHH o Gerencia comunica el nuevo ingreso.',
+    'Se solicita la plantilla de datos del colaborador.',
+    'Se crean credenciales: correo (Zimbra), MEDESP, SeguriCloud, Bitrix si aplica.',
     'Se entrega credenciales y se configura el equipo de trabajo.',
-    'Se asigna equipo tecnológico con acta de entrega firmada (si corresponde).',
+    'Se asigna equipo tecnológico con acta de entrega firmada.',
     'Se indica completar capacitaciones en SeguriLearn.'
   ];
 
-  flujoSalida: string[] = [
-    'RRHH o Gerencia comunica la salida del colaborador.',
-    'Se bloquean/deshabilitan credenciales en todas las plataformas: MEDESP, correo, SeguriCloud, Bitrix.',
-    'Se recoge equipo tecnológico y se actualiza inventario.'
-  ];
-
-  flujoSoporte: string[] = [
-    'El empleado intenta resolver el problema por su cuenta (buscar solución, consultar compañeros, revisar SeguriLearn).',
-    'Si persiste y es de nivel intermedio o superior, se contacta al Área de Sistemas.',
-    'El Área evalúa: problema conocido → resuelve directo; software externo (LABINT, Bitrix) → contacta proveedor; remoto → AnyDesk.',
+  flujoSoporte = [
+    'Intentar resolver por cuenta propia (SeguriLearn, compañeros).',
+    'Si persiste y es nivel intermedio o superior, contactar a Sistemas.',
+    'El Área evalúa y resuelve, contacta proveedor o atiende vía AnyDesk.',
     'Se documenta la solución aplicada.'
   ];
 
   constructor(private router: Router, private el: ElementRef) {}
 
-  ngOnInit(): void {}
-
   ngAfterViewInit(): void {
-    this.setupIntersectionObserver();
+    this.initObservers();
   }
 
   ngOnDestroy(): void {
-    if (this.observer) this.observer.disconnect();
-    if (this.animObserver) this.animObserver.disconnect();
+    this.sectionObs?.disconnect();
+    this.revealObs?.disconnect();
   }
 
-  setupIntersectionObserver(): void {
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          this.activeSection = entry.target.id;
-          this.animatedSections.add(entry.target.id);
+  private initObservers(): void {
+    this.sectionObs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) this.activeSection = e.target.id; });
+    }, { rootMargin: '-20% 0px -60% 0px' });
+
+    this.revealObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          this.revealObs.unobserve(e.target);
         }
       });
-    }, { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 });
+    }, { threshold: 0.06 });
 
-    this.animObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-        }
-      });
-    }, { threshold: 0.1 });
-
-    setTimeout(() => {
-      const sections = this.el.nativeElement.querySelectorAll('section[id]');
-      sections.forEach((section: Element) => this.observer.observe(section));
-
-      const animElements = this.el.nativeElement.querySelectorAll('.animate-on-scroll');
-      animElements.forEach((el: Element) => this.animObserver.observe(el));
-    }, 100);
+    requestAnimationFrame(() => {
+      this.el.nativeElement.querySelectorAll('section[id]').forEach((s: Element) => this.sectionObs.observe(s));
+      this.el.nativeElement.querySelectorAll('.rv').forEach((el: Element) => this.revealObs.observe(el));
+    });
   }
 
   @HostListener('window:scroll')
   onScroll(): void {
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    this.scrollProgress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    this.scrollProgress = h > 0 ? (window.scrollY / h) * 100 : 0;
   }
 
-  scrollTo(sectionId: string): void {
+  scrollTo(id: string): void {
     this.sidebarOpen = false;
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
-  }
+  toggleSidebar(): void { this.sidebarOpen = !this.sidebarOpen; }
+  goToQuiz(): void { this.router.navigate(['/quiz']); }
 
-  goToQuiz(): void {
-    this.router.navigate(['/induccion/evaluacion']);
-  }
+  randomTechPhrase: string = '';
+
+techPhrases: string[] = [
+  '🚀 Iniciando protocolo de inducción...',
+  '💻 Conectando a la red de conocimiento',
+  '⚡ Sincronizando datos del sistema',
+  // ... más frases
+];
+
+selectRandomPhrase(): void {
+  const randomIndex = Math.floor(Math.random() * this.techPhrases.length);
+  this.randomTechPhrase = this.techPhrases[randomIndex];
+}
+
+onRobotHover(): void {
+  this.selectRandomPhrase();
+}
+
+ngOnInit(): void {
+  this.selectRandomPhrase();
+}
 }

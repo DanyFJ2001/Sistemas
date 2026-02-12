@@ -1,306 +1,325 @@
-<!-- Progress Bar -->
-<div class="progress-bar">
-  <div class="progress-fill" [style.width.%]="scrollProgress"></div>
-</div>
+<!-- ═══ Progress ═══ -->
+<div class="topbar-progress"><div class="topbar-fill" [style.width.%]="scrollProgress"></div></div>
 
-<!-- Mobile Sidebar Toggle -->
-<button class="sidebar-toggle" (click)="toggleSidebar()" [class.active]="sidebarOpen">
-  <span></span><span></span><span></span>
-</button>
+<!-- ═══ Mobile Toggle ═══ -->
+<button class="mob-toggle" (click)="toggleSidebar()" [class.active]="sidebarOpen"><span></span><span></span><span></span></button>
 
-
-<!-- Sidebar Navigation -->
-<nav class="sidebar" [class.open]="sidebarOpen">  
-  <div class="sidebar-header">
-    <div class="sidebar-logo"><div class="logo-placeholder">S</div></div>
-    <span class="sidebar-title">Índice</span>
+<!-- ═══ Sidebar ═══ -->
+<nav class="side" [class.open]="sidebarOpen">
+  <div class="side-brand">
+    <img src="../../../assets/images/logo_blanco_segurilab.png" class="side-logo-img" alt="Segurilab">
   </div>
-  <ul class="sidebar-nav">
-    <li *ngFor="let item of sidebarItems" [class.active]="activeSection === item.id" (click)="scrollTo(item.id)">
-      <span class="nav-icon">{{ item.icon }}</span>
-      <span class="nav-label">{{ item.label }}</span>
-      <span class="nav-indicator"></span>
+  <ul class="side-nav">
+    <li *ngFor="let s of sidebarItems" [class.active]="activeSection === s.id" (click)="scrollTo(s.id)">
+      <i class="dot"></i><span>{{ s.label }}</span>
     </li>
+    <!-- 🤖 ROBOT FLOTANTE ESTILO EVA WALL-E -->
+    <div class="robot-floating-container">
+      <div class="robot-wrapper" (mouseenter)="onRobotHover()">
+        <img 
+          src="../../../assets/robot_lindo.png" 
+          alt="Robot Asistente" 
+          class="robot-image"
+        >
+        <!-- Efecto de propulsión (partículas) -->
+        <div class="thruster-particles">
+          <div class="particle p1"></div>
+          <div class="particle p2"></div>
+          <div class="particle p3"></div>
+          <div class="particle p4"></div>
+        </div>
+      </div>
+      
+      <!-- Burbuja de mensaje -->
+      <div class="robot-speech-bubble">
+        <p class="tech-phrase">{{ randomTechPhrase }}</p>
+      </div>
+      
+      <!-- Brillo alrededor del robot -->
+      <div class="robot-glow"></div>
+    </div>
   </ul>
-  <div class="sidebar-footer">
-    <button class="quiz-btn-sidebar" (click)="goToQuiz()">📝 Ir a Evaluación</button>
-  </div>
+  <div class="side-foot"><button class="side-cta" (click)="goToQuiz()">Preguntas frecuentes</button></div>
 </nav>
+<div class="side-shade" *ngIf="sidebarOpen" (click)="toggleSidebar()"></div>
 
-<div class="sidebar-overlay" *ngIf="sidebarOpen" (click)="toggleSidebar()">
-    
-</div>
-<main class="main-content">
-    <button 
-    class="btn-login-sticky" 
-    routerLink="/login" 
-    title="Volver al login">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-        <polyline points="10 17 15 12 10 7"></polyline>
-        <line x1="15" y1="12" x2="3" y2="12"></line>
-    </svg>
-    <span class="btn-text">Iniciar Sesión</span>
-    </button>
-  <!-- HERO -->
-  <section id="hero" class="hero-section">
-    <div class="hero-bg">
-      <div class="grid-overlay"></div>
-      <div class="particle p1"></div><div class="particle p2"></div><div class="particle p3"></div>
-      <div class="particle p4"></div><div class="particle p5"></div>
-      <div class="floating-shape shape1"></div><div class="floating-shape shape2"></div><div class="floating-shape shape3"></div>
+<!-- ═══ Main ═══ -->
+<main class="page">
+
+  <!-- Login shortcut -->
+  <a routerLink="/login" class="login-pill" title="Volver al login">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    Iniciar Sesión
+  </a>
+
+  <!-- ════════════════════ HERO ════════════════════ -->
+  <section id="hero" class="hero">
+    <div class="hero-canvas">
+      <div class="h-grid"></div>
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="orb orb-c"></div>
+      <span class="ring ring-1"></span>
+      <span class="ring ring-2"></span>
+      <span class="ring ring-3"></span>
+      <span class="dot-float d1"></span><span class="dot-float d2"></span>
+      <span class="dot-float d3"></span><span class="dot-float d4"></span>
     </div>
-    <div class="hero-content">
-      <div class="hero-badge animate-on-scroll">INDUCCIÓN CORPORATIVA</div>
-      <h1 class="hero-title animate-on-scroll">Área de <span class="gradient-text">Sistemas</span></h1>
-      <p class="hero-subtitle animate-on-scroll">Conoce la estructura, funciones, plataformas y flujos de trabajo que impulsan la tecnología de <strong>Segurilab</strong>.</p>
-      <div class="hero-actions animate-on-scroll">
-        <button class="btn-primary" (click)="scrollTo('estructura')">Explorar Contenido <span class="btn-arrow">→</span></button>
-        <button class="btn-secondary" (click)="goToQuiz()">Banco de Preguntas <span class="btn-arrow">→</span></button>
+    <div class="hero-body">
+      <p class="hero-tag rv up">INDUCCIÓN CORPORATIVA</p>
+      <h1 class="hero-h rv up d1">Área de <span class="grad">Sistemas</span></h1>
+      <p class="hero-sub rv up d2">Todo lo que necesitas saber sobre las plataformas, flujos y lineamientos tecnológicos de <strong>Segurilab</strong>.</p>
+      <div class="hero-btns rv up d3">
+        <button class="btn-fill" (click)="scrollTo('equipo')">Explorar contenido
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <button class="btn-ghost" (click)="goToQuiz()">Preguntas frecuentes</button>
       </div>
-      <div class="hero-stats animate-on-scroll">
-        <div class="stat"><span class="stat-number">10+</span><span class="stat-label">Plataformas</span></div>
-        <div class="stat-divider"></div>
-        <div class="stat"><span class="stat-number">5</span><span class="stat-label">Sucursales</span></div>
-        <div class="stat-divider"></div>
-        <div class="stat"><span class="stat-number">3</span><span class="stat-label">Integrantes</span></div>
+      <div class="hero-stats rv up d4">
+        <div class="hs"><strong>10+</strong><span>Plataformas</span></div>
+        <i class="hs-sep"></i>
+        <div class="hs"><strong>5</strong><span>Sucursales</span></div>
+        <i class="hs-sep"></i>
+        <div class="hs"><strong>3</strong><span>Integrantes</span></div>
       </div>
     </div>
-    <div class="scroll-indicator" (click)="scrollTo('estructura')">
-      <div class="mouse"><div class="wheel"></div></div>
-      <span>Desliza para continuar</span>
-    </div>
+    <button class="scroll-cue" (click)="scrollTo('equipo')"><span class="sc-track"><span class="sc-thumb"></span></span></button>
   </section>
 
-  <!-- ESTRUCTURA -->
-  <section id="estructura" class="section">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll">
-        <span class="section-tag">01</span>
-        <h2 class="section-title">Estructura del Área</h2>
-        <p class="section-desc">El Área de Sistemas funciona como un equipo integrado donde todos los miembros colaboran en los diferentes procesos, organizándose según las necesidades del momento.</p>
-      </div>
-      <div class="team-grid">
-        <div *ngFor="let member of teamMembers; let i = index" class="team-card animate-on-scroll" [style.animationDelay]="(i * 150) + 'ms'">
-          <div class="card-glow"></div>
-          <div class="member-avatar"><span>{{ member.icon }}</span></div>
-          <h3 class="member-name">{{ member.name }}</h3>
-          <p class="member-role">{{ member.role }}</p>
-          <div class="member-line"></div>
+  <!-- ════════════════════ EQUIPO ════════════════════ -->
+  <section id="equipo" class="sect">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">01</span>
+        <h2>Nuestro Equipo</h2>
+        <p>Jose y Dany cubren las mismas funciones y se organizan por proceso. Mateo lidera el desarrollo de MEDESP desde Argentina.</p>
+      </header>
+
+      <div class="team-row">
+        <div
+          *ngFor="let m of team; let i = index"
+          class="t-card rv up"
+          [style.transitionDelay]="(i * 120) + 'ms'"
+        >
+
+          <!-- Imagen -->
+          <img
+            *ngIf="m.photo; else initialsAvatar"
+            [src]="m.photo"
+            class="t-avatar-img"
+            [alt]="m.name"
+            loading="lazy"
+          />
+
+          <!-- Fallback -->
+          <ng-template #initialsAvatar>
+            <div class="t-avatar">
+              <span>{{ m.initials }}</span>
+            </div>
+          </ng-template>
+
+          <h3>{{ m.name }}</h3>
+          <p>{{ m.role }}</p>
+          <i class="t-line"></i>
+
         </div>
       </div>
-      <div class="info-callout animate-on-scroll">
-        <div class="callout-icon">💡</div>
-        <div class="callout-content"><strong>Importante:</strong> José y Dany trabajan como equipo realizando las mismas funciones y organizándose según los procesos del momento. Mateo Alvarado, como desarrollador principal, trabaja de forma remota desde Argentina enfocado en la plataforma MEDESP.</div>
+
+
+      <div class="callout rv up">
+        <svg class="callout-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <p><strong>Importante:</strong> Jose y Dany trabajan como equipo realizando las mismas funciones y organizándose según los procesos del momento. Mateo trabaja de forma remota desde Argentina enfocado en MEDESP.</p>
       </div>
     </div>
   </section>
 
-  <!-- PLATAFORMAS -->
-  <section id="plataformas" class="section section-dark">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll">
-        <span class="section-tag">02</span>
-        <h2 class="section-title">Plataformas y Sistemas</h2>
-        <p class="section-desc">El Área de Sistemas administra y da soporte a más de 10 plataformas que sustentan las operaciones de Segurilab.</p>
-      </div>
-      <div class="platforms-grid">
-        <div *ngFor="let platform of platforms; let i = index" class="platform-card animate-on-scroll" [style.animationDelay]="(i * 100) + 'ms'">
-          <div class="platform-icon">{{ platform.icon }}</div>
-          <h3 class="platform-name">{{ platform.name }}</h3>
-          <p class="platform-desc">{{ platform.description }}</p>
-          <div class="platform-tags"><span *ngFor="let tag of platform.tags" class="tag">{{ tag }}</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- ════════════════════ PLATAFORMAS ════════════════════ -->
+  <section id="plataformas" class="sect sect-alt">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">02</span>
+        <h2>Plataformas que Gestionamos</h2>
+        <p>Administramos y damos soporte a las herramientas tecnológicas que sostienen las operaciones de Segurilab.</p>
+      </header>
 
-  <!-- INFRAESTRUCTURA -->
-  <section id="infraestructura" class="section">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll">
-        <span class="section-tag">03</span>
-        <h2 class="section-title">Infraestructura y Redes</h2>
-        <p class="section-desc">La columna vertebral tecnológica de Segurilab: servidores, redes, data center y comunicaciones entre sucursales.</p>
-      </div>
-      <div class="infra-grid">
-        <div class="infra-card animate-on-scroll"><div class="infra-icon-wrap"><div class="infra-icon">🖥️</div></div><h3>Servidores</h3><p>Dos servidores (principal y secundario) gestionados a través de máquinas virtuales en <strong>Proxmox</strong>.</p></div>
-        <div class="infra-card animate-on-scroll" style="animation-delay:150ms"><div class="infra-icon-wrap"><div class="infra-icon">🗄️</div></div><h3>Data Center</h3><p>Centro de datos con amplia cantidad de equipos y herramientas para soluciones informáticas del día a día.</p></div>
-        <div class="infra-card animate-on-scroll" style="animation-delay:300ms"><div class="infra-icon-wrap"><div class="infra-icon">🔒</div></div><h3>Red Local y VPN</h3><p>Servidores accesibles en red local mediante IPs específicas. Acceso externo vía <strong>VPN en Sophos</strong>.</p></div>
-        <div class="infra-card animate-on-scroll" style="animation-delay:450ms"><div class="infra-icon-wrap"><div class="infra-icon">📞</div></div><h3>Telefonía IP</h3><p>Teléfonos IP en todas las sucursales, vinculados mediante <strong>VPN y Mikrotiks</strong>.</p></div>
-      </div>
-      <div class="sucursales-map animate-on-scroll">
-        <h3 class="sucursales-title">Sucursales Conectadas</h3>
-        <div class="sucursales-list">
-          <div class="sucursal-item"><div class="sucursal-dot main"></div><span>Chiris <small>(Central)</small></span></div>
-          <div class="sucursal-connector"></div>
-          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Calderón</span></div>
-          <div class="sucursal-connector"></div>
-          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Praderas</span></div>
-          <div class="sucursal-connector"></div>
-          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Hospital del Sur</span></div>
-          <div class="sucursal-connector"></div>
-          <div class="sucursal-item"><div class="sucursal-dot"></div><span>Michelena</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- SOPORTE -->
-  <section id="soporte" class="section section-dark">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">04</span><h2 class="section-title">Soporte Técnico</h2></div>
-      <div class="support-grid">
-        <div class="support-item animate-on-scroll"><div class="support-icon">🖨️</div><div><h4>Impresoras y periféricos</h4><p>Resolución de problemas con impresoras de papel, etiquetas y periféricos.</p></div></div>
-        <div class="support-item animate-on-scroll" style="animation-delay:100ms"><div class="support-icon">📧</div><div><h4>Correo electrónico</h4><p>Configuración de acceso, puertos IMAP/SMTP y resolución de problemas.</p></div></div>
-        <div class="support-item animate-on-scroll" style="animation-delay:200ms"><div class="support-icon">🌐</div><div><h4>Internet y conectividad</h4><p>Diagnóstico y solución de problemas de conexión a internet y red local.</p></div></div>
-        <div class="support-item animate-on-scroll" style="animation-delay:300ms"><div class="support-icon">💿</div><div><h4>Instalación de software</h4><p>Instalación de SO (Windows), Office y gestión de licencias.</p></div></div>
-        <div class="support-item animate-on-scroll" style="animation-delay:400ms"><div class="support-icon">📱</div><div><h4>Teléfonos empresariales</h4><p>Configuración de credenciales y acceso a plataformas en dispositivos de asesores.</p></div></div>
-        <div class="support-item animate-on-scroll" style="animation-delay:500ms"><div class="support-icon">🖥️</div><div><h4>Soporte remoto (AnyDesk)</h4><p>Asistencia remota para sucursales externas a Chiris.</p></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- MANTENIMIENTO -->
-  <section id="mantenimiento" class="section">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">05</span><h2 class="section-title">Mantenimiento y Electrónica</h2></div>
-      <div class="maint-columns">
-        <div class="maint-card animate-on-scroll"><div class="maint-header"><span class="maint-icon">🔄</span><h3>Mantenimiento Preventivo</h3></div><p>Mantenimiento regular en Chiris. Para sucursales externas se maneja un <strong>calendario programado</strong>.</p></div>
-        <div class="maint-card animate-on-scroll" style="animation-delay:150ms"><div class="maint-header"><span class="maint-icon">🔨</span><h3>Mantenimiento Correctivo</h3></div><p>Reparación de equipos ante fallas, reemplazo de componentes y restauración de funcionalidad.</p></div>
-        <div class="maint-card animate-on-scroll" style="animation-delay:300ms"><div class="maint-header"><span class="maint-icon">⚡</span><h3>Electrónica Básica</h3></div><p>Reparación de circuitos, empalmes de conexiones, paneles de puertas electrónicas y ensamblaje.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- DESARROLLO -->
-  <section id="desarrollo" class="section section-dark">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">06</span><h2 class="section-title">Desarrollo de Soluciones</h2><p class="section-desc">El área diseña, desarrolla y mantiene soluciones informáticas propias.</p></div>
-      <div class="dev-list">
-        <div class="dev-item animate-on-scroll"><div class="dev-number">01</div><div class="dev-content"><h4>Plataformas web internas</h4><p>Inventario del data center, turnero y módulos de contabilidad.</p></div></div>
-        <div class="dev-item animate-on-scroll" style="animation-delay:100ms"><div class="dev-number">02</div><div class="dev-content"><h4>Scripts y visión artificial</h4><p>Scripts personalizados y soluciones de visión artificial según requerimientos.</p></div></div>
-        <div class="dev-item animate-on-scroll" style="animation-delay:200ms"><div class="dev-number">03</div><div class="dev-content"><h4>Aplicaciones nuevas</h4><p>Coordinación para nuevas apps (ej: app de gerenciamiento de viajes para conductores).</p></div></div>
-        <div class="dev-item animate-on-scroll" style="animation-delay:300ms"><div class="dev-number">04</div><div class="dev-content"><h4>Consultas SQL y queries</h4><p>Consultas en BD por solicitud de Gerencia General (Dra. Sofía Alarcón) a través de Navicat.</p></div></div>
-        <div class="dev-item animate-on-scroll" style="animation-delay:400ms"><div class="dev-number">05</div><div class="dev-content"><h4>Cotizaciones técnicas</h4><p>Cotizaciones de equipos, protectores, adaptadores, canaletas y componentes tecnológicos.</p></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FLUJOS -->
-  <section id="flujos" class="section">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">07</span><h2 class="section-title">Flujos de Trabajo</h2><p class="section-desc">Procesos estandarizados que garantizan una gestión ordenada y eficiente.</p></div>
-      <div class="flow-block animate-on-scroll">
-        <h3 class="flow-title"><span class="flow-icon">🟢</span> Nuevo Ingreso de Personal</h3>
-        <div class="flow-steps">
-          <div *ngFor="let step of flujoNuevoIngreso; let i = index; let last = last" class="flow-step">
-            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
-            <div class="step-content"><p>{{ step }}</p></div>
+      <div class="plat-grid">
+        <div *ngFor="let p of platforms; let i = index" class="plat-card rv up" [style.transitionDelay]="(i*70)+'ms'">
+          <!-- ══ PLACEHOLDER IMAGEN ══
+               Reemplaza div.plat-thumb con:
+               <img src="assets/platforms/medesp.png" class="plat-thumb-img" alt="MEDESP">
+          ══════════════════════════ -->
+          <div class="plat-thumb" [ngClass]="p.cls">
+            <img src="assets/platforms/medesp.png" class="plat-thumb-img" alt="MEDESP">
+          </div>
+          <div class="plat-body">
+            <h3>{{ p.name }}</h3>
+            <p class="plat-sum">{{ p.summary }}</p>
+            <ul class="plat-pts">
+              <li *ngFor="let pt of p.points">{{ pt }}</li>
+            </ul>
           </div>
         </div>
       </div>
-      <div class="flow-block animate-on-scroll">
-        <h3 class="flow-title"><span class="flow-icon">🔴</span> Salida de Personal</h3>
-        <div class="flow-steps">
-          <div *ngFor="let step of flujoSalida; let i = index; let last = last" class="flow-step">
-            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
-            <div class="step-content"><p>{{ step }}</p></div>
+    </div>
+  </section>
+
+  <!-- ════════════════════ QUÉ HACEMOS ════════════════════ -->
+  <section id="funciones" class="sect">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">03</span>
+        <h2>Qué Hacemos</h2>
+        <p>Las funciones principales que cubre el Área de Sistemas en el día a día.</p>
+      </header>
+
+      <div class="fn-grid">
+        <div class="fn-card rv up">
+          <div class="fn-ico">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           </div>
+          <h3>Soporte Técnico</h3>
+          <ul><li>Configuración de impresoras, correo y conectividad</li><li>Instalación de software y gestión de licencias</li><li>Configuración de teléfonos empresariales</li><li>Soporte remoto vía AnyDesk para sucursales externas</li></ul>
         </div>
-      </div>
-      <div class="flow-block animate-on-scroll">
-        <h3 class="flow-title"><span class="flow-icon">🔵</span> Solicitud de Soporte</h3>
-        <div class="flow-steps">
-          <div *ngFor="let step of flujoSoporte; let i = index; let last = last" class="flow-step">
-            <div class="step-marker"><span class="step-number">{{ i + 1 }}</span><div class="step-line" *ngIf="!last"></div></div>
-            <div class="step-content"><p>{{ step }}</p></div>
+        <div class="fn-card rv up" style="transition-delay:100ms">
+          <div class="fn-ico">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
+          <h3>Mantenimiento</h3>
+          <ul><li>Preventivo periódico en Chiris y calendario para sucursales externas</li><li>Correctivo ante fallas de equipos</li><li>Electrónica básica: circuitos, empalmes, paneles de puertas</li></ul>
         </div>
-      </div>
-      <div class="flow-block animate-on-scroll">
-        <h3 class="flow-title"><span class="flow-icon">🟡</span> Solicitud de Accesos</h3>
-        <div class="flow-steps">
-          <div class="flow-step"><div class="step-marker"><span class="step-number">1</span><div class="step-line"></div></div><div class="step-content"><p>El empleado o jefe de área solicita el acceso requerido.</p></div></div>
-          <div class="flow-step"><div class="step-marker"><span class="step-number">2</span><div class="step-line"></div></div><div class="step-content"><p>La solicitud debe venir respaldada por autorización de Gerencia (Dra. Sofía Alarcón) o RRHH.</p></div></div>
-          <div class="flow-step"><div class="step-marker"><span class="step-number">3</span><div class="step-line"></div></div><div class="step-content"><p>El Área de Sistemas crea o modifica los permisos en la plataforma correspondiente.</p></div></div>
-          <div class="flow-step"><div class="step-marker"><span class="step-number">4</span></div><div class="step-content"><p>Se notifica al solicitante con las credenciales o confirmación.</p></div></div>
+        <div class="fn-card rv up" style="transition-delay:200ms">
+          <div class="fn-ico">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <h3>Desarrollo</h3>
+          <ul><li>Plataformas web internas (inventario, turnero, contabilidad)</li><li>Scripts personalizados y visión artificial</li><li>Consultas SQL por solicitud de Gerencia</li><li>Cotizaciones de equipos tecnológicos</li></ul>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CANALES -->
-  <section id="canales" class="section section-dark">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">08</span><h2 class="section-title">Canales de Soporte</h2></div>
-      <div class="channels-grid">
-        <div class="channel-card main-channel animate-on-scroll"><div class="channel-badge">Canal Oficial</div><div class="channel-icon">✉️</div><h4>Correo Electrónico</h4><p>Canal oficial para solicitudes formales. Toda petición queda documentada.</p></div>
-        <div class="channel-card animate-on-scroll" style="animation-delay:100ms"><div class="channel-badge secondary">Más utilizado</div><div class="channel-icon">💬</div><h4>WhatsApp</h4><p>Canal donde se recibe la mayoría de solicitudes del día a día.</p></div>
-        <div class="channel-card animate-on-scroll" style="animation-delay:200ms"><div class="channel-badge upcoming">Próximamente</div><div class="channel-icon">🎫</div><h4>Sistema de Tickets</h4><p>Se está implementando un canal de tickets dentro de esta plataforma.</p></div>
-        <div class="channel-card animate-on-scroll" style="animation-delay:300ms"><div class="channel-icon">🖥️</div><h4>AnyDesk (Remoto)</h4><p>Soporte remoto para sucursales externas a Chiris.</p></div>
-        <div class="channel-card animate-on-scroll" style="animation-delay:400ms"><div class="channel-icon">🎓</div><h4>SeguriLearn</h4><p>Recurso de autocapacitación y consulta antes de solicitar soporte.</p></div>
-        <div class="channel-card animate-on-scroll" style="animation-delay:500ms"><div class="channel-icon">👤</div><h4>Jairo Troya</h4><p>Asistente de Gerencia. Canal exclusivo para usuarios y permisos de LABINT.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- LINEAMIENTOS -->
-  <section id="lineamientos" class="section">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">09</span><h2 class="section-title">Lineamientos Generales</h2></div>
-      <div class="lineamientos-list">
-        <div class="lineamiento-item animate-on-scroll"><div class="lineamiento-icon">🔐</div><p>Toda instalación de software en equipos personales requiere <strong>autorización expresa</strong> de la Gerencia General (Dra. Sofía Alarcón).</p></div>
-        <div class="lineamiento-item animate-on-scroll" style="animation-delay:80ms"><div class="lineamiento-icon">👑</div><p>Solo el Área de Sistemas y Gerencia poseen <strong>permisos de administrador</strong> en las plataformas.</p></div>
-        <div class="lineamiento-item animate-on-scroll" style="animation-delay:160ms"><div class="lineamiento-icon">📶</div><p>Flujo de soporte: <strong>autogestión → consulta con compañeros → escalamiento a Sistemas</strong> (solo nivel intermedio o superior).</p></div>
-        <div class="lineamiento-item animate-on-scroll" style="animation-delay:240ms"><div class="lineamiento-icon">🕐</div><p>El Área de Sistemas <strong>no brinda soporte fuera del horario laboral</strong>.</p></div>
-        <div class="lineamiento-item animate-on-scroll" style="animation-delay:320ms"><div class="lineamiento-icon">🔑</div><p>Problemas con <strong>LABINT</strong> (usuarios/permisos) → contactar a <strong>Jairo Troya</strong>, no a Sistemas.</p></div>
-        <div class="lineamiento-item animate-on-scroll" style="animation-delay:400ms"><div class="lineamiento-icon">📩</div><p>El <strong>correo electrónico</strong> es el canal oficial. Sistema de tickets próximamente.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- RESPONSABILIDADES -->
-  <section id="responsabilidades" class="section section-dark">
-    <div class="section-container">
-      <div class="section-header animate-on-scroll"><span class="section-tag">10</span><h2 class="section-title">Responsabilidades</h2></div>
-      <div class="resp-columns">
-        <div class="resp-card sistemas animate-on-scroll">
-          <div class="resp-header"><h3>🛠️ Área de Sistemas</h3></div>
-          <ul class="resp-list">
-            <li>Garantizar el correcto funcionamiento de servidores, redes y plataformas.</li>
-            <li>Crear, modificar y deshabilitar accesos de usuarios.</li>
-            <li>Mantener la seguridad informática (Sophos).</li>
-            <li>Realizar mantenimiento preventivo y correctivo.</li>
-            <li>Desarrollar soluciones informáticas internas.</li>
-            <li>Gestionar inventario del data center y asignación de equipos.</li>
-            <li>Administrar SeguriLearn (cursos y certificados).</li>
-            <li>Atender requerimientos de Gerencia General.</li>
-          </ul>
-        </div>
-        <div class="resp-card colaboradores animate-on-scroll" style="animation-delay:200ms">
-          <div class="resp-header"><h3>👤 Colaboradores</h3></div>
-          <ul class="resp-list">
-            <li><strong>Autocapacitarse</strong> en las herramientas asignadas (SeguriLearn).</li>
-            <li><strong>Intentar resolver problemas</strong> antes de contactar a Sistemas.</li>
-            <li><strong>No depender de Sistemas</strong> para problemas repetitivos o simples.</li>
-            <li><strong>Solicitar accesos</strong> con justificación y autorización.</li>
-            <li><strong>Cuidar los equipos</strong> asignados y reportar fallas.</li>
-            <li><strong>No compartir credenciales</strong> de acceso.</li>
-            <li><strong>Respetar los permisos</strong> asignados a su función.</li>
-          </ul>
+        <div class="fn-card rv up" style="transition-delay:300ms">
+          <div class="fn-ico">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3>Gestión de Accesos</h3>
+          <ul><li>Creación de usuarios y credenciales en todas las plataformas</li><li>Asignación de permisos según perfil y sucursal</li><li>Bloqueo de cuentas al salir un colaborador</li><li>Asignación de equipos con acta firmada</li></ul>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta-section">
-    <div class="cta-bg"><div class="cta-particle cp1"></div><div class="cta-particle cp2"></div><div class="cta-particle cp3"></div></div>
-    <div class="cta-content animate-on-scroll">
-      <h2>¿Listo para la evaluación?</h2>
-      <p>Pon a prueba tus conocimientos con nuestro banco de preguntas sobre el Área de Sistemas de Segurilab.</p>
-      <button class="btn-primary btn-lg" (click)="goToQuiz()">📝 Iniciar Evaluación <span class="btn-arrow">→</span></button>
+  <!-- ════════════════════ FLUJOS ════════════════════ -->
+  <section id="flujos" class="sect sect-alt">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">04</span>
+        <h2>Flujos de Trabajo</h2>
+      </header>
+
+      <div class="flows-row">
+        <div class="flow-card rv up">
+          <div class="flow-head c-green-soft">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            <h3>Nuevo Ingreso</h3>
+          </div>
+          <ol class="flow-ol">
+            <li *ngFor="let s of flujoIngreso; let i = index" class="flow-li">
+              <span class="fl-n">{{ i + 1 }}</span><span>{{ s }}</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="flow-card rv up" style="transition-delay:140ms">
+          <div class="flow-head c-blue-soft">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <h3>Solicitud de Soporte</h3>
+          </div>
+          <ol class="flow-ol">
+            <li *ngFor="let s of flujoSoporte; let i = index" class="flow-li">
+              <span class="fl-n">{{ i + 1 }}</span><span>{{ s }}</span>
+            </li>
+          </ol>
+        </div>
+      </div>
     </div>
   </section>
+
+  <!-- ════════════════════ CANALES ════════════════════ -->
+  <section id="canales" class="sect">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">05</span>
+        <h2>Canales de Soporte</h2>
+      </header>
+
+      <div class="ch-row">
+        <div class="ch-card ch-primary rv up">
+          <span class="ch-badge">Oficial</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <h4>Correo Electrónico</h4>
+          <p>Canal formal para solicitudes. Toda petición queda documentada.</p>
+        </div>
+        <div class="ch-card rv up" style="transition-delay:80ms">
+          <span class="ch-badge green">Más usado</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <h4>WhatsApp</h4>
+          <p>Canal informal para solicitudes rápidas del día a día.</p>
+        </div>
+        <div class="ch-card rv up" style="transition-delay:160ms">
+          <span class="ch-badge amber">Próximamente</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/></svg>
+          <h4>Sistema de Tickets</h4>
+          <p>En implementación dentro de esta misma plataforma.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════ LINEAMIENTOS ════════════════════ -->
+  <section id="lineamientos" class="sect sect-alt">
+    <div class="wrap">
+      <header class="sh rv up">
+        <span class="sh-num">06</span>
+        <h2>Lo Que Debes Saber</h2>
+        <p>Lineamientos esenciales para una convivencia tecnológica ordenada.</p>
+      </header>
+
+      <div class="rules">
+        <div class="rule rv up">
+          <i class="rule-dot"></i>
+          <div><h4>Instalación de software en equipos personales</h4><p>Requiere autorización expresa de la Gerencia General (Dra. Sofía Alarcón).</p></div>
+        </div>
+        <div class="rule rv up" style="transition-delay:50ms">
+          <i class="rule-dot"></i>
+          <div><h4>Permisos de administrador</h4><p>Solo el Área de Sistemas y Gerencia poseen acceso de administrador en las plataformas.</p></div>
+        </div>
+        <div class="rule rv up" style="transition-delay:100ms">
+          <i class="rule-dot"></i>
+          <div><h4>Flujo de escalamiento</h4><p>Autogestión, luego compañeros, luego Sistemas. Solo escalar problemas de nivel intermedio o superior.</p></div>
+        </div>
+        <div class="rule rv up" style="transition-delay:150ms">
+          <i class="rule-dot"></i>
+          <div><h4>Horario de soporte</h4><p>El Área de Sistemas no brinda soporte fuera del horario laboral.</p></div>
+        </div>
+        <div class="rule rv up" style="transition-delay:200ms">
+          <i class="rule-dot"></i>
+          <div><h4>Usuarios de LABINT</h4><p>Para usuarios o permisos de LABINT, contactar a Jairo Troya (Asistente de Gerencia), no a Sistemas.</p></div>
+        </div>
+        <div class="rule rv up" style="transition-delay:250ms">
+          <i class="rule-dot"></i>
+          <div><h4>Credenciales y equipos</h4><p>No compartir credenciales, cuidar los equipos asignados y completar las capacitaciones en SeguriLearn.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════ CTA ════════════════════ -->
+  <section class="cta">
+    <div class="cta-glow"></div>
+    <div class="cta-body rv up">
+      <h2>¿Tienes dudas?</h2>
+      <p>Revisa las preguntas más frecuentes sobre el Área de Sistemas.</p>
+      <button class="btn-fill btn-lg" (click)="goToQuiz()">Ver Preguntas Frecuentes
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+    </div>
+  </section>
+
 </main>
