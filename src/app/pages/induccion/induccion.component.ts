@@ -1,5 +1,6 @@
 import {
-  Component, OnDestroy, HostListener, ElementRef, AfterViewInit
+  Component, OnDestroy, HostListener, ElementRef, AfterViewInit, 
+  ViewChild, CUSTOM_ELEMENTS_SCHEMA, OnInit
 } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -8,10 +9,49 @@ import { CommonModule } from '@angular/common';
   selector: 'app-induccion',
   standalone: true,
   imports: [CommonModule, RouterModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './induccion.component.html',
   styleUrls: ['./induccion.component.css']
 })
-export class InduccionComponent implements AfterViewInit, OnDestroy {
+export class InduccionComponent implements OnInit, AfterViewInit, OnDestroy {
+
+  // ══════════════════════════════════════════════════════════
+  // 🤖 CONFIGURACIÓN DEL ROBOT LOTTIE
+  // ══════════════════════════════════════════════════════════
+  
+  @ViewChild('robotLottie', { static: false }) robotLottie!: ElementRef;
+  
+  private lottieInterval: any;
+  private lottieCheckAttempts = 0;
+  private readonly MAX_CHECK_ATTEMPTS = 10;
+  
+  // Configuración de timing (en milisegundos)
+  private readonly LOTTIE_PLAY_DURATION = 3000;      // Duración de reproducción: 3 segundos
+  private readonly LOTTIE_REPEAT_INTERVAL = 90000;   // Repetir cada: 90 segundos (1.5 min)
+  
+  randomTechPhrase: string = '';
+
+  techPhrases: string[] = [
+    'Iniciando protocolo de inducción...',
+    'Conectando a la red de conocimiento',
+    'Sincronizando datos del sistema',
+    'Verificando credenciales de acceso',
+    'Estableciendo conexión segura',
+    'Activando protocolos de seguridad',
+    'Cargando módulos de capacitación',
+    'Navegando por el ecosistema digital',
+    'Optimizando experiencia de usuario',
+    'Configurando herramientas corporativas',
+    'Sistema de encriptación activado',
+    'Analizando métricas de rendimiento',
+    'Interfaz de usuario optimizada',
+    'Sincronización en tiempo real',
+    'Respaldo de datos en progreso'
+  ];
+
+  // ══════════════════════════════════════════════════════════
+  // RESTO DE PROPIEDADES DEL COMPONENTE
+  // ══════════════════════════════════════════════════════════
 
   activeSection = 'hero';
   sidebarOpen = false;
@@ -29,27 +69,26 @@ export class InduccionComponent implements AfterViewInit, OnDestroy {
     { id: 'lineamientos', label: 'Lo Que Debes Saber' },
   ];
 
-team = [
-  {
-    name: 'José Gallardo',
-    role: 'Sistemas & Soporte',
-    initials: 'JG',
-    photo: '../../../assets/images/jose_avatar.jpeg'
-  },
-  {
-    name: 'Dany Fernández',
-    role: 'Sistemas & Soporte',
-    initials: 'DF',
-    photo: '../../../assets/images/dany_avatar.jpeg'
-  },
-  {
-    name: 'Mateo Alvarado',
-    role: 'Desarrollo (Remoto — Argentina)',
-    initials: 'MA',
-    photo: '../../../assets/images/mateo_avatar.png'
-  }
-];
-
+  team = [
+    {
+      name: 'José Gallardo',
+      role: 'Sistemas & Soporte',
+      initials: 'JG',
+      photo: '../../../assets/images/jose_avatar.jpeg'
+    },
+    {
+      name: 'Dany Fernández',
+      role: 'Sistemas & Soporte',
+      initials: 'DF',
+      photo: '../../../assets/images/dany_avatar.jpeg'
+    },
+    {
+      name: 'Mateo Alvarado',
+      role: 'Desarrollo (Remoto — Argentina)',
+      initials: 'MA',
+      photo: '../../../assets/images/mateo_avatar.png'
+    }
+  ];
 
   platforms = [
     {
@@ -110,20 +149,174 @@ team = [
     'Se documenta la solución aplicada.'
   ];
 
-  constructor(private router: Router, private el: ElementRef) {}
+  constructor(private router: Router, private el: ElementRef) {
+    console.log('🔧 InduccionComponent constructor - Componente inicializado');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 🎬 LIFECYCLE HOOKS
+  // ══════════════════════════════════════════════════════════
+
+  ngOnInit(): void {
+    console.log('🎬 ngOnInit - Inicializando componente');
+    this.selectRandomPhrase();
+    console.log('💬 Frase inicial seleccionada:', this.randomTechPhrase);
+  }
 
   ngAfterViewInit(): void {
+    console.log('🎬 ngAfterViewInit - Vista inicializada');
+    
+    // Inicializar observadores de secciones
     this.initObservers();
+    
+    // Esperar un tick para que el ViewChild esté disponible
+    setTimeout(() => {
+      console.log('⏱️ Timeout ejecutado - Verificando elemento Lottie...');
+      this.checkAndSetupLottie();
+    }, 20000); // Aumentado a 200ms para dar más tiempo
   }
 
   ngOnDestroy(): void {
+    console.log('🧹 ngOnDestroy - Limpiando recursos');
+    
     this.sectionObs?.disconnect();
     this.revealObs?.disconnect();
+    
+    // Limpiar el intervalo de Lottie
+    if (this.lottieInterval) {
+      console.log('🛑 Deteniendo intervalo de Lottie');
+      clearInterval(this.lottieInterval);
+    }
   }
 
+  // ══════════════════════════════════════════════════════════
+  // 🤖 CONTROL DE ANIMACIÓN LOTTIE CON DEBUGGING
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * Verifica si el elemento Lottie está disponible y configura el loop
+   */
+  private checkAndSetupLottie(): void {
+    console.log('🔍 Verificando disponibilidad de elemento Lottie...');
+    console.log('📊 ViewChild robotLottie:', this.robotLottie);
+    
+    if (this.robotLottie && this.robotLottie.nativeElement) {
+      console.log('✅ Elemento Lottie encontrado:', this.robotLottie.nativeElement);
+      console.log('🎯 Tag del elemento:', this.robotLottie.nativeElement.tagName);
+      this.setupLottieLoop();
+    } else {
+      this.lottieCheckAttempts++;
+      console.warn(`⚠️ Elemento Lottie no encontrado. Intento ${this.lottieCheckAttempts}/${this.MAX_CHECK_ATTEMPTS}`);
+      
+      if (this.lottieCheckAttempts < this.MAX_CHECK_ATTEMPTS) {
+        // Reintentar después de 300ms
+        setTimeout(() => this.checkAndSetupLottie(), 300);
+      } else {
+        console.error('❌ ERROR: No se pudo encontrar el elemento Lottie después de múltiples intentos');
+        console.error('💡 Verifica que:');
+        console.error('   1. El elemento <dotlottie-wc> tiene el #robotLottie template reference');
+        console.error('   2. CUSTOM_ELEMENTS_SCHEMA está en los schemas del componente');
+        console.error('   3. El elemento está visible en el DOM (no oculto por ngIf)');
+      }
+    }
+  }
+
+  /**
+   * Configura el loop de la animación Lottie
+   */
+  private setupLottieLoop(): void {
+    const lottieElement = this.robotLottie.nativeElement;
+    
+    console.log('🎬 Configurando loop de animación Lottie');
+    console.log('⏱️ Duración de reproducción:', this.LOTTIE_PLAY_DURATION, 'ms');
+    console.log('🔁 Intervalo de repetición:', this.LOTTIE_REPEAT_INTERVAL, 'ms');
+    console.log('📍 Elemento:', lottieElement);
+    
+    // Verificar que el elemento tiene los métodos necesarios
+    if (typeof lottieElement.play !== 'function') {
+      console.warn('⚠️ El elemento no tiene el método play() disponible');
+      console.log('🔍 Métodos disponibles:', Object.getOwnPropertyNames(Object.getPrototypeOf(lottieElement)));
+      return;
+    }
+    
+    // Función para reproducir la animación
+    const playAnimation = () => {
+      console.log('▶️ Reproduciendo animación Lottie');
+      
+      try {
+        lottieElement.play();
+        console.log('✅ play() ejecutado exitosamente');
+        
+        // Detener después de LOTTIE_PLAY_DURATION
+        setTimeout(() => {
+          console.log('⏸️ Deteniendo animación Lottie');
+          
+          if (typeof lottieElement.stop === 'function') {
+            lottieElement.stop();
+            console.log('✅ stop() ejecutado exitosamente');
+          } else {
+            console.warn('⚠️ El elemento no tiene el método stop() disponible');
+          }
+        }, this.LOTTIE_PLAY_DURATION);
+        
+      } catch (error) {
+        console.error('❌ Error al ejecutar play():', error);
+      }
+    };
+
+    // Primera reproducción inmediata
+    console.log('🚀 Iniciando primera reproducción...');
+    playAnimation();
+
+    // Configurar intervalo para repeticiones
+    console.log(`🔁 Configurando repetición cada ${this.LOTTIE_REPEAT_INTERVAL / 1000} segundos`);
+    this.lottieInterval = setInterval(() => {
+      console.log('🔄 Ciclo de repetición activado');
+      playAnimation();
+    }, this.LOTTIE_REPEAT_INTERVAL);
+    
+    console.log('✅ Loop de Lottie configurado correctamente');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 💬 GESTIÓN DE FRASES TECNOLÓGICAS
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * Selecciona una frase tech aleatoria
+   */
+  selectRandomPhrase(): void {
+    const previousPhrase = this.randomTechPhrase;
+    const randomIndex = Math.floor(Math.random() * this.techPhrases.length);
+    this.randomTechPhrase = this.techPhrases[randomIndex];
+    
+    console.log('🎲 Frase seleccionada:');
+    console.log('   Anterior:', previousPhrase);
+    console.log('   Nueva:', this.randomTechPhrase);
+  }
+
+  /**
+   * Cambia la frase cuando el usuario pasa el mouse sobre el robot
+   */
+  onRobotHover(): void {
+    console.log('🖱️ Hover detectado en el robot');
+    this.selectRandomPhrase();
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 📍 OBSERVERS Y NAVEGACIÓN
+  // ══════════════════════════════════════════════════════════
+
   private initObservers(): void {
+    console.log('👀 Inicializando IntersectionObservers');
+    
     this.sectionObs = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) this.activeSection = e.target.id; });
+      entries.forEach(e => { 
+        if (e.isIntersecting) {
+          console.log('📍 Sección activa:', e.target.id);
+          this.activeSection = e.target.id;
+        }
+      });
     }, { rootMargin: '-20% 0px -60% 0px' });
 
     this.revealObs = new IntersectionObserver(entries => {
@@ -136,8 +329,14 @@ team = [
     }, { threshold: 0.06 });
 
     requestAnimationFrame(() => {
-      this.el.nativeElement.querySelectorAll('section[id]').forEach((s: Element) => this.sectionObs.observe(s));
-      this.el.nativeElement.querySelectorAll('.rv').forEach((el: Element) => this.revealObs.observe(el));
+      const sections = this.el.nativeElement.querySelectorAll('section[id]');
+      const revealElements = this.el.nativeElement.querySelectorAll('.rv');
+      
+      console.log('📊 Secciones encontradas:', sections.length);
+      console.log('✨ Elementos reveal encontrados:', revealElements.length);
+      
+      sections.forEach((s: Element) => this.sectionObs.observe(s));
+      revealElements.forEach((el: Element) => this.revealObs.observe(el));
     });
   }
 
@@ -148,32 +347,18 @@ team = [
   }
 
   scrollTo(id: string): void {
+    console.log('🔗 Navegando a:', id);
     this.sidebarOpen = false;
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  toggleSidebar(): void { this.sidebarOpen = !this.sidebarOpen; }
-  goToQuiz(): void { this.router.navigate(['/quiz']); }
+  toggleSidebar(): void { 
+    this.sidebarOpen = !this.sidebarOpen;
+    console.log('📱 Sidebar:', this.sidebarOpen ? 'abierto' : 'cerrado');
+  }
 
-  randomTechPhrase: string = '';
-
-techPhrases: string[] = [
-  '🚀 Iniciando protocolo de inducción...',
-  '💻 Conectando a la red de conocimiento',
-  '⚡ Sincronizando datos del sistema',
-  // ... más frases
-];
-
-selectRandomPhrase(): void {
-  const randomIndex = Math.floor(Math.random() * this.techPhrases.length);
-  this.randomTechPhrase = this.techPhrases[randomIndex];
-}
-
-onRobotHover(): void {
-  this.selectRandomPhrase();
-}
-
-ngOnInit(): void {
-  this.selectRandomPhrase();
-}
+  goToQuiz(): void { 
+    console.log('📝 Navegando al quiz');
+    this.router.navigate(['/quiz']); 
+  }
 }

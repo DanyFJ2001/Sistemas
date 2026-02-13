@@ -9,19 +9,30 @@
   <div class="side-brand">
     <img src="../../../assets/images/logo_blanco_segurilab.png" class="side-logo-img" alt="Segurilab">
   </div>
+  
   <ul class="side-nav">
     <li *ngFor="let s of sidebarItems" [class.active]="activeSection === s.id" (click)="scrollTo(s.id)">
       <i class="dot"></i><span>{{ s.label }}</span>
     </li>
-    <!-- 🤖 ROBOT FLOTANTE ESTILO EVA WALL-E -->
-    <div class="robot-floating-container">
-      <div class="robot-wrapper" (mouseenter)="onRobotHover()">
-        <img 
-          src="../../../assets/robot_lindo.png" 
-          alt="Robot Asistente" 
-          class="robot-image"
-        >
-        <!-- Efecto de propulsión (partículas) -->
+  </ul>
+  
+  <!-- ═══ Robot Flotante ═══ -->
+  <div class="robot-floating-container" (mouseenter)="onRobotHover()">
+    <div class="robot-content">
+      <!-- Robot animado -->
+      <div class="robot-wrapper">
+        <div class="robot-glow"></div>
+        
+        <dotlottie-wc
+          #robotLottie
+          src="https://lottie.host/d7ed96b2-fb05-416e-93cb-6f62ffd0e460/OvnqR18JQm.lottie"
+          class="robot-lottie"
+          autoplay="false"
+          loop="false"
+          speed="1"
+        ></dotlottie-wc>
+        
+        <!-- Partículas mejoradas -->
         <div class="thruster-particles">
           <div class="particle p1"></div>
           <div class="particle p2"></div>
@@ -30,16 +41,25 @@
         </div>
       </div>
       
-      <!-- Burbuja de mensaje -->
+      <!-- Burbuja tecnológica con puntos decorativos -->
       <div class="robot-speech-bubble">
-        <p class="tech-phrase">{{ randomTechPhrase }}</p>
+        <!-- Puntos de esquina decorativos -->
+        <span class="corner-dot"></span>
+        <span class="corner-dot"></span>
+        <span class="corner-dot"></span>
+        <span class="corner-dot"></span>
+        
+        <div class="speech-content">
+          <span class="speech-icon">💡</span>
+          <p class="tech-phrase">{{ randomTechPhrase }}</p>
+        </div>
       </div>
-      
-      <!-- Brillo alrededor del robot -->
-      <div class="robot-glow"></div>
     </div>
-  </ul>
-  <div class="side-foot"><button class="side-cta" (click)="goToQuiz()">Preguntas frecuentes</button></div>
+  </div>
+  
+  <div class="side-foot">
+    <button class="side-cta" (click)="goToQuiz()">Preguntas frecuentes</button>
+  </div>
 </nav>
 <div class="side-shade" *ngIf="sidebarOpen" (click)="toggleSidebar()"></div>
 
@@ -322,4 +342,5 @@
     </div>
   </section>
 
+  
 </main>
