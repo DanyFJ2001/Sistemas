@@ -94,41 +94,49 @@ export class InduccionComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       name: 'MEDESP', cls: 'c-blue',
       summary: 'Gestión de historias clínicas, agendamientos y administración de pacientes.',
+      image: '../../../assets/images/medesp_cap.png',
       points: ['Creación de usuarios con plantilla de datos completa', 'Permisos por perfil y sucursal', 'Gestión de horarios médicos', 'Firma digital P12 para médicos ocupacionales']
     },
     {
       name: 'LABINT', cls: 'c-teal',
       summary: 'Resultados de laboratorio, rayos X y exámenes complementarios.',
+      image: '../../../assets/images/labint_cap.png',
       points: ['Sistemas garantiza el funcionamiento del servidor', 'Usuarios y permisos los gestiona Jairo Troya', 'Instalación en equipos personales requiere autorización de Gerencia']
     },
     {
       name: 'Bitrix CRM', cls: 'c-indigo',
       summary: 'Gestión comercial: contactos, negociaciones, cotizaciones y KPIs.',
+      image: '../../../assets/images/bitrix_cap.png',
       points: ['Solo Sistemas y Gerencia son administradores', 'Integración con WhatsApp CRM', 'Capacitaciones disponibles en SeguriLearn']
     },
     {
       name: 'SeguriCloud', cls: 'c-cyan',
       summary: 'Almacenamiento en la nube para toda la documentación corporativa.',
+      image: '../../../assets/images/nube_cap.png',
       points: ['Accesos por carpeta y departamento', 'Links compartidos para convenios externos']
     },
     {
       name: 'Zimbra', cls: 'c-violet',
       summary: 'Servidor de correo electrónico empresarial.',
+      image: '../../../assets/images/zimbra_cap.png',
       points: ['Formato: [inicial].[apellido]@segurilab.s', 'Configuración de puertos IMAP/SMTP']
     },
     {
       name: 'Sophos', cls: 'c-red',
       summary: 'Seguridad informática: firewall, antivirus, VPN y antispam.',
+      image: '../../../assets/images/sophos_cap.png',
       points: ['Filtrado de correos maliciosos', 'VPN para acceso remoto a servidores']
     },
     {
       name: 'SeguriLearn', cls: 'c-green',
       summary: 'Plataforma de capacitaciones con cursos, evaluaciones y certificados.',
+      image: '../../../assets/images/segurilearn_cap.png',
       points: ['Cursos sobre pre-admisiones, recepción de resultados, Bitrix y más', 'Certificados automáticos al aprobar']
     },
     {
       name: 'Página Web', cls: 'c-orange',
       summary: 'Sitio institucional público con perfiles médicos y agendamiento.',
+      image: '../../../assets/images/segurilab_cap.png',
       points: ['Perfiles de médicos vinculados con MEDESP', 'Códigos QR para agendamiento por especialidad']
     }
   ];
@@ -148,6 +156,9 @@ export class InduccionComponent implements OnInit, AfterViewInit, OnDestroy {
     'El Área evalúa y resuelve, contacta proveedor o atiende vía AnyDesk.',
     'Se documenta la solución aplicada.'
   ];
+
+  lightboxImage: string | null = null;
+  openImage(src: string): void { this.lightboxImage = src; }
 
   constructor(private router: Router, private el: ElementRef) {
     console.log('🔧 InduccionComponent constructor - Componente inicializado');
@@ -361,4 +372,7 @@ export class InduccionComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('📝 Navegando al quiz');
     this.router.navigate(['/quiz']); 
   }
+  
+  contactOpen = false;
+  toggleContact(): void { this.contactOpen = !this.contactOpen; }
 }

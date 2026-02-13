@@ -167,7 +167,7 @@
 .plat-card:hover{border-color:var(--brd-h);transform:translateY(-4px);box-shadow:0 14px 40px rgba(0,0,0,.25)}
 
 /* Platform thumb placeholder */
-.plat-thumb{height:56px;display:flex;align-items:center;justify-content:center;font-family:var(--ff);font-weight:800;font-size:22px;color:rgba(255,255,255,.7);position:relative;overflow:hidden}
+.plat-thumb{height:100px;display:flex;align-items:center;justify-content:center;font-family:var(--ff);font-weight:800;font-size:22px;color:rgba(255,255,255,.7);position:relative;overflow:hidden}
 .plat-thumb::after{content:'Colocar imagen aquí';position:absolute;bottom:6px;font-size:9px;font-weight:400;color:rgba(255,255,255,.3);letter-spacing:.5px}
 .plat-thumb.c-blue{background:linear-gradient(135deg,#1e3a8a,#2563eb)}.plat-thumb.c-teal{background:linear-gradient(135deg,#134e4a,#14b8a6)}
 .plat-thumb.c-indigo{background:linear-gradient(135deg,#312e81,#6366f1)}.plat-thumb.c-cyan{background:linear-gradient(135deg,#164e63,#06b6d4)}
@@ -218,6 +218,10 @@
 .ch-badge.green{background:rgba(52,211,153,.12);color:var(--green)}
 .ch-badge.amber{background:rgba(251,191,36,.12);color:var(--amber)}
 .ch-card svg{color:var(--txt3);margin-bottom:12px}
+.ch-card svg { color: var(--txt3); margin-bottom: 12px; display: block; margin-left: auto }
+.ch-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px }
+.ch-title-row h4 { margin: 0 }
+.ch-title-row svg { flex-shrink: 0; color: var(--txt3) }
 .ch-card h4{font-family:var(--ff);font-size:14px;font-weight:600;margin:0 0 6px}
 .ch-card p{font-size:12.5px;line-height:1.6;color:var(--txt2);margin:0}
 
@@ -259,6 +263,24 @@
   .btn-fill,.btn-ghost{width:100%;justify-content:center}
   .team-row{grid-template-columns:1fr}
 }
+
+/* Contacto boton */
+/* ═══ FLOATING CONTACT ═══ */
+.contact-fab-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 950; display: flex; flex-direction: column; align-items: flex-end; gap: 12px }
+.contact-fab { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), #1d4ed8); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 24px rgba(37,99,235,.4); transition: .3s }
+.contact-fab:hover { transform: scale(1.08); box-shadow: 0 8px 30px rgba(37,99,235,.55) }
+.contact-fab.active { background: var(--card); border: 1px solid var(--brd-h); color: var(--txt2) }
+
+.contact-panel { background: var(--card); border: 1px solid var(--brd-h); border-radius: 16px; padding: 22px; width: 280px; box-shadow: 0 16px 48px rgba(0,0,0,.4); animation: panelUp .3s cubic-bezier(.16,1,.3,1) }
+@keyframes panelUp { from { opacity: 0; transform: translateY(12px) scale(.95) } to { opacity: 1; transform: none } }
+.contact-panel h4 { font-family: var(--ff); font-size: 14px; font-weight: 600; margin: 0 0 16px; color: var(--txt) }
+
+.contact-group { margin-bottom: 14px }
+.contact-group:last-child { margin-bottom: 0 }
+.cg-label { display: block; font-family: var(--ff); font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px }
+.cg-link { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 13px; color: var(--txt2); text-decoration: none; transition: .2s }
+.cg-link:hover { background: rgba(59,130,246,.08); color: var(--txt) }
+.cg-link svg { flex-shrink: 0; color: var(--blue-l) }
 
 /* ═══════════════════════════════════════════════════════════
    🤖 ROBOT FLOTANTE - VERSIÓN GRANDE Y TECNOLÓGICA
@@ -731,3 +753,24 @@
 .robot-speech-bubble.variant-purple .speech-icon {
   filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
 }
+
+.plat-thumb { position: relative; cursor: pointer; overflow: hidden }
+.plat-zoom {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .25s; color: #fff;
+}
+.plat-thumb:hover .plat-zoom { opacity: 1 }
+
+.plat-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s }
+.plat-thumb:hover .plat-thumb-img { transform: scale(1.05) }
+
+.lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-out; animation: fadeIn .25s;
+}
+.lightbox img { max-width: 90vw; max-height: 85vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5) }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
