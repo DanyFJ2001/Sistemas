@@ -6,7 +6,7 @@ export const routes: Routes = [
   // 🔹 Página principal (sin login)
   {
     path: '',
-    redirectTo: 'induccion',
+    redirectTo: 'difusiones',
     pathMatch: 'full'
   },
 

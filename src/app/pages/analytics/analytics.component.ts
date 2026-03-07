@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { io, Socket } from 'socket.io-client';
+import { environment } from '../../../app/enviroments/enviroment';
 
 interface Stats {
   broadcasts: number;
@@ -38,7 +39,6 @@ interface Lead {
   styleUrls: ['./analytics.component.css']
 })
 export class AnalyticsComponent implements OnInit, OnDestroy {
-  // Estadísticas
   stats: Stats = {
     broadcasts: 0,
     sent: 0,
@@ -50,46 +50,34 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     interestRate: '0'
   };
 
-  // Leads
   leads: Lead[] = [];
   filteredLeads: Lead[] = [];
   
-  // Estados
   cargando = true;
   filtro: 'todos' | 'pendientes' | 'respondidos' = 'todos';
   busqueda = '';
   
   private destroy$ = new Subject<void>();
   private socket: Socket | null = null;
+  private readonly API = `${environment.apiUrl}/api`;
 
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    console.log('🔌 Inicializando Analytics Component...');
     this.cargarDatos();
     this.inicializarSocket();
-    
-    // Recargar cada 15 segundos por si acaso
     setInterval(() => this.cargarDatos(), 15000);
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-    if (this.socket) {
-      this.socket.disconnect();
-      console.log('🔌 Socket desconectado');
-    }
+    if (this.socket) this.socket.disconnect();
   }
 
   inicializarSocket() {
     try {
-      // ✅ CONECTAR AL BACKEND (puerto 3000), no al frontend (4200)
-      const socketUrl = "https://backend-whattssap-production.up.railway.app";
-      
-      console.log('🔌 Conectando socket a:', socketUrl);
-      
-      this.socket = io(socketUrl, {
+      this.socket = io(environment.apiUrl, {
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -97,38 +85,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         transports: ['websocket', 'polling']
       });
 
-      // Evento de conexión
-      this.socket.on('connect', () => {
-        console.log('✅ Socket conectado al backend');
-      });
+      this.socket.on('connect', () => console.log('✅ Socket conectado al backend'));
+      this.socket.on('disconnect', () => console.log('❌ Socket desconectado'));
 
-      // Evento de desconexión
-      this.socket.on('disconnect', () => {
-        console.log('❌ Socket desconectado');
-      });
-
-      // Escuchar nuevos mensajes
-      this.socket.on('whatsapp:message', (messageData: any) => {
-        console.log('📩 Mensaje recibido en socket:', messageData);
-        this.cargarDatos();
-      });
-
-      // Escuchar respuestas
-      this.socket.on('analytics:response', (responseData: any) => {
-        console.log('📊 Response analytics recibido:', responseData);
-        this.cargarDatos();
-      });
-
-      // Escuchar lead interesado
-      this.socket.on('analytics:interested', (leadData: any) => {
-        console.log('🎯 Lead interesado recibido en socket:', leadData);
-        this.cargarDatos();
-      });
-
-      // Error de socket
-      this.socket.on('error', (error: any) => {
-        console.error('⚠️ Error de socket:', error);
-      });
+      this.socket.on('whatsapp:message', () => this.cargarDatos());
+      this.socket.on('analytics:response', () => this.cargarDatos());
+      this.socket.on('analytics:interested', () => this.cargarDatos());
 
     } catch (error) {
       console.error('❌ Error inicializando socket:', error);
@@ -136,40 +98,27 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   cargarDatos() {
-    console.log('📊 Cargando datos del backend...');
-    
-    // ✅ APUNTAR AL BACKEND (puerto 3000)
-    const backendUrl = 'http://localhost:3000';
-
-    // Cargar estadísticas
-    this.http.get<{ success: boolean; stats: Stats }>(`${backendUrl}/api/analytics/stats`)
+    this.http.get<{ success: boolean; stats: Stats }>(`${this.API}/analytics/stats`)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          console.log('✅ Estadísticas cargadas:', response);
           this.stats = response.stats;
           this.cargando = false;
         },
         error: (error) => {
           console.error('❌ Error cargando estadísticas:', error);
-          console.error('URL:', `${backendUrl}/api/analytics/stats`);
           this.cargando = false;
         }
       });
 
-    // Cargar leads
-    this.http.get<{ success: boolean; leads: Lead[] }>(`${backendUrl}/api/analytics/interested`)
+    this.http.get<{ success: boolean; leads: Lead[] }>(`${this.API}/analytics/interested`)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          console.log('✅ Leads cargados:', response);
           this.leads = response.leads || [];
           this.aplicarFiltros();
         },
-        error: (error) => {
-          console.error('❌ Error cargando leads:', error);
-          console.error('URL:', `${backendUrl}/api/analytics/interested`);
-        }
+        error: (error) => console.error('❌ Error cargando leads:', error)
       });
   }
 
@@ -192,7 +141,6 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     this.filteredLeads = resultado;
-    console.log('🔍 Leads después de filtrar:', this.filteredLeads.length);
   }
 
   onFiltroChange(nuevoFiltro: 'todos' | 'pendientes' | 'respondidos') {
@@ -206,16 +154,11 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   marcarComoRespondido(leadId: string) {
-    this.http.post(`/api/analytics/replied/${leadId}`, {})
+    this.http.post(`${this.API}/analytics/replied/${leadId}`, {})
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: () => {
-          console.log('✅ Lead marcado como respondido');
-          this.cargarDatos();
-        },
-        error: (error) => {
-          console.error('❌ Error:', error);
-        }
+        next: () => this.cargarDatos(),
+        error: (error) => console.error('❌ Error:', error)
       });
   }
 
@@ -239,31 +182,17 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     return keywords[keyword.toLowerCase()] || '#0066cc';
   }
 
-  // Getters
-  get leadsPendientes(): number {
-    return this.leads.filter(l => !l.replied).length;
-  }
-
-  get leadsRespondidos(): number {
-    return this.leads.filter(l => l.replied).length;
-  }
-
-  get totalLeads(): number {
-    return this.leads.length;
-  }
+  get leadsPendientes(): number { return this.leads.filter(l => !l.replied).length; }
+  get leadsRespondidos(): number { return this.leads.filter(l => l.replied).length; }
+  get totalLeads(): number { return this.leads.length; }
 
   getSuccessRate(): number {
     if (this.stats.sent === 0) return 0;
     return Math.round(((this.stats.sent - this.stats.failed) / this.stats.sent) * 100);
   }
 
-  getResponsePercentage(): number {
-    return parseFloat(this.stats.responseRate);
-  }
-
-  getInterestPercentage(): number {
-    return parseFloat(this.stats.interestRate);
-  }
+  getResponsePercentage(): number { return parseFloat(this.stats.responseRate); }
+  getInterestPercentage(): number { return parseFloat(this.stats.interestRate); }
 
   getNegativePercentage(): number {
     if (this.stats.responses === 0) return 0;
