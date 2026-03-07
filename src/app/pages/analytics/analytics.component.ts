@@ -85,7 +85,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   inicializarSocket() {
     try {
       // ✅ CONECTAR AL BACKEND (puerto 3000), no al frontend (4200)
-      const socketUrl = 'http://localhost:3000';
+      const socketUrl = "https://backend-whattssap-production.up.railway.app";
       
       console.log('🔌 Conectando socket a:', socketUrl);
       

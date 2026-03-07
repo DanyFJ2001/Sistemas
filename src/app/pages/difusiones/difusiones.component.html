@@ -5,12 +5,12 @@
   <div class="page-header">
     <div class="header-content">
       <div class="header-title">
-        <h1>📢 Difusiones</h1>
-        <p>Envía mensajes masivos por WhatsApp</p>
+        <h1>Difusiones</h1>
+        <p>Envíos masivos por WhatsApp</p>
       </div>
       <div class="header-actions">
-        <a routerLink="/bases-contactos" class="btn-icon">
-          <span>📋</span> Bases
+        <a routerLink="/bases-contactos" class="btn-icon" *ngIf="whatsappConectado">
+          Bases
         </a>
         <div class="status-badge" [ngClass]="whatsappConectado ? 'conectado' : 'desconectado'">
           <span class="status-dot"></span>
@@ -20,81 +20,202 @@
     </div>
   </div>
 
-  <!-- SECCIÓN QR - ESTILO WHATSAPP -->
+  <!-- QR -->
   <section *ngIf="!whatsappConectado" class="qr-section">
     <div class="qr-wrapper">
-      
-      <!-- QR CARD -->
       <div class="qr-card">
         <div class="qr-header">
           <h2>Conecta WhatsApp</h2>
           <p>Escanea el código QR con tu teléfono</p>
         </div>
 
-        <!-- QR BOX -->
         <div class="qr-display" [ngSwitch]="estadoConexion">
-          
-          <!-- ESPERANDO QR -->
           <div *ngSwitchCase="'esperando_qr'" class="qr-loading">
             <div class="spinner"></div>
             <p>Generando QR...</p>
           </div>
 
-          <!-- QR LISTO -->
           <div *ngSwitchCase="'escaneando'" class="qr-ready">
             <div class="qr-box" *ngIf="qrImagen">
               <img [src]="qrImagen" alt="WhatsApp QR Code" class="qr-img">
             </div>
             <div class="qr-info">
               <p><strong>1.</strong> Abre WhatsApp en tu teléfono</p>
-              <p><strong>2.</strong> Toca Ajustes > Dispositivos vinculados</p>
+              <p><strong>2.</strong> Toca Ajustes › Dispositivos vinculados</p>
               <p><strong>3.</strong> Escanea este código</p>
             </div>
           </div>
 
-          <!-- NO CONECTADO -->
+          <div *ngSwitchCase="'qr_ready'" class="qr-ready">
+            <div class="qr-box" *ngIf="qrImagen">
+              <img [src]="qrImagen" alt="WhatsApp QR Code" class="qr-img">
+            </div>
+            <div class="qr-info">
+              <p><strong>1.</strong> Abre WhatsApp en tu teléfono</p>
+              <p><strong>2.</strong> Toca Ajustes › Dispositivos vinculados</p>
+              <p><strong>3.</strong> Escanea este código</p>
+            </div>
+          </div>
+
           <div *ngSwitchDefault class="qr-not-ready">
-            <div class="qr-icon">📱</div>
+            <div class="qr-icon">◻</div>
             <p>No conectado</p>
             <button class="btn-primary" (click)="iniciarConexionWhatsApp()">
               Generar QR
             </button>
           </div>
-
         </div>
 
-        <!-- FOOTER QR CARD -->
-        <div class="qr-footer" *ngIf="estadoConexion === 'escaneando'">
+        <div class="qr-footer" *ngIf="estadoConexion === 'escaneando' || estadoConexion === 'qr_ready'">
           <button class="btn-secondary" (click)="iniciarConexionWhatsApp()">
-            ↻ Nuevo QR
+            Nuevo QR
           </button>
         </div>
       </div>
-
     </div>
   </section>
 
-  <!-- CONTENIDO PRINCIPAL (CONECTADO) -->
+  <!-- CONTENIDO PRINCIPAL -->
   <div class="main-content" *ngIf="whatsappConectado">
     
-    <!-- CONEXION BAR -->
     <div class="conexion-bar">
-      <span class="conexion-text">✅ WhatsApp conectado y listo</span>
+      <span class="conexion-text">WhatsApp conectado y listo</span>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- ENVÍO INDIVIDUAL CON PAD NUMÉRICO                  -->
+    <!-- ================================================== -->
+    <div class="test-send-card card">
+      <div class="card-header">
+        <h3>Envío individual</h3>
+        <span class="test-send-badge">Prueba</span>
+      </div>
+
+      <div class="test-send-body">
+
+        <!-- Izquierda: selector país + pantalla + mensaje -->
+        <div class="phone-display-section">
+
+          <div class="country-selector">
+            <label>País</label>
+            <select [(ngModel)]="testPaisSeleccionado" (change)="onPaisSeleccionado()">
+              <option value="593">Ecuador (+593)</option>
+              <option value="54">Argentina (+54)</option>
+              <option value="56">Chile (+56)</option>
+              <option value="51">Perú (+51)</option>
+              <option value="57">Colombia (+57)</option>
+              <option value="52">México (+52)</option>
+              <option value="58">Venezuela (+58)</option>
+              <option value="591">Bolivia (+591)</option>
+              <option value="598">Uruguay (+598)</option>
+              <option value="595">Paraguay (+595)</option>
+              <option value="1">EEUU / Canadá (+1)</option>
+              <option value="34">España (+34)</option>
+            </select>
+          </div>
+
+          <div class="phone-screen">
+            <span class="phone-country-code">+{{ testPaisSeleccionado }}</span>
+            <span 
+              class="phone-number-display"
+              [class.placeholder]="!testNumero">
+              {{ testNumero || 'Ingresa el número' }}
+            </span>
+          </div>
+
+          <div class="test-message-section">
+            <label>Mensaje</label>
+            <textarea 
+              [(ngModel)]="testMensaje"
+              placeholder="Escribe el mensaje de prueba..."
+              rows="3">
+            </textarea>
+          </div>
+
+          <div class="test-send-action">
+            <button 
+              class="btn-primary"
+              (click)="enviarMensajeIndividual()"
+              [disabled]="!testNumero || testNumero.length < 6 || !testMensaje || enviandoTest">
+              {{ enviandoTest ? 'Enviando...' : 'Enviar mensaje' }}
+            </button>
+            <button 
+              class="btn-secondary"
+              (click)="limpiarTestNumero()"
+              *ngIf="testNumero">
+              Limpiar
+            </button>
+          </div>
+
+          <div class="test-send-result success" *ngIf="testResultado === 'ok'">
+            Mensaje enviado correctamente
+          </div>
+          <div class="test-send-result error" *ngIf="testResultado === 'error'">
+            Error al enviar — verifica el número
+          </div>
+
+        </div>
+
+        <!-- Derecha: pad numérico -->
+        <div class="numpad">
+          <button class="numpad-key" (click)="testNumpadPress('1')">
+            <span>1</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('2')">
+            <span>2</span>
+            <span class="key-sub">ABC</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('3')">
+            <span>3</span>
+            <span class="key-sub">DEF</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('4')">
+            <span>4</span>
+            <span class="key-sub">GHI</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('5')">
+            <span>5</span>
+            <span class="key-sub">JKL</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('6')">
+            <span>6</span>
+            <span class="key-sub">MNO</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('7')">
+            <span>7</span>
+            <span class="key-sub">PQRS</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('8')">
+            <span>8</span>
+            <span class="key-sub">TUV</span>
+          </button>
+          <button class="numpad-key" (click)="testNumpadPress('9')">
+            <span>9</span>
+            <span class="key-sub">WXYZ</span>
+          </button>
+          <button class="numpad-key key-clear" (click)="testNumero = ''; testResultado = null">
+            <span>CLR</span>
+          </button>
+          <button class="numpad-key key-zero" (click)="testNumpadPress('0')">
+            <span>0</span>
+          </button>
+          <button class="numpad-key key-delete" (click)="testNumpadDelete()">
+            ⌫
+          </button>
+        </div>
+
+      </div>
     </div>
 
     <!-- GRID PRINCIPAL -->
     <div class="content-grid">
 
-      <!-- ============================================== -->
-      <!-- COLUMNA 1: CONTACTOS                          -->
-      <!-- ============================================== -->
+      <!-- CONTACTOS -->
       <section class="card">
         <div class="card-header">
-          <h3>👥 Contactos</h3>
+          <h3>Contactos</h3>
         </div>
-
         <div class="card-body">
-          <!-- Selector de base -->
           <div class="form-group">
             <label>Base de datos</label>
             <select 
@@ -102,7 +223,7 @@
               [(ngModel)]="baseSeleccionadaId" 
               (change)="onBaseSeleccionada()"
               *ngIf="!cargandoBases">
-              <option value="">-- Selecciona una base --</option>
+              <option value="">Selecciona una base</option>
               <option *ngFor="let base of basesDisponibles" [value]="base.id">
                 {{ base.nombre }} ({{ base.totalContactos }} contactos)
               </option>
@@ -113,7 +234,6 @@
             </p>
           </div>
 
-          <!-- Lista de contactos -->
           <div class="contactos-section" *ngIf="contactos.length > 0">
             <div class="contactos-controls">
               <input 
@@ -121,7 +241,7 @@
                 class="search-input"
                 [(ngModel)]="busquedaContacto" 
                 (input)="filtrarContactos()" 
-                placeholder="Buscar...">
+                placeholder="Buscar contacto...">
               <label class="checkbox-all">
                 <input type="checkbox" [checked]="todosSeleccionados" (change)="toggleSeleccionTodos()">
                 <span>Todos</span>
@@ -139,32 +259,27 @@
             </div>
 
             <div class="contactos-count">
-              {{ contactosSeleccionados.length }} de {{ contactos.length }} seleccionados
+              {{ contactosSeleccionados.length }} / {{ contactos.length }} seleccionados
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ============================================== -->
-      <!-- COLUMNA 2: MENSAJE Y ENVÍO                    -->
-      <!-- ============================================== -->
+      <!-- MENSAJE -->
       <section class="card">
         <div class="card-header">
-          <h3>✍️ Mensaje</h3>
+          <h3>Mensaje</h3>
         </div>
-
         <div class="card-body">
 
-          <!-- TOGGLE IA -->
           <div class="ia-toggle">
-            <span>🤖 Generar con IA</span>
+            <span>Generar con IA</span>
             <label class="switch">
               <input type="checkbox" [(ngModel)]="usarIA">
               <span class="slider"></span>
             </label>
           </div>
 
-          <!-- PANEL IA -->
           <div class="ia-panel" *ngIf="usarIA">
             <div class="form-group">
               <label>Contexto del negocio</label>
@@ -177,15 +292,15 @@
             </div>
 
             <div class="form-group">
-              <label>Objetivo del mensaje</label>
+              <label>Objetivo</label>
               <select [(ngModel)]="objetivoMensaje" [disabled]="enviando">
                 <option value="">Selecciona...</option>
-                <option value="promocion">📢 Promoción / Oferta</option>
-                <option value="recordatorio">⏰ Recordatorio de cita</option>
-                <option value="informativo">📄 Informativo</option>
-                <option value="seguimiento">🔄 Seguimiento</option>
-                <option value="bienvenida">👋 Bienvenida</option>
-                <option value="encuesta">📊 Encuesta / Feedback</option>
+                <option value="promocion">Promoción / Oferta</option>
+                <option value="recordatorio">Recordatorio de cita</option>
+                <option value="informativo">Informativo</option>
+                <option value="seguimiento">Seguimiento</option>
+                <option value="bienvenida">Bienvenida</option>
+                <option value="encuesta">Encuesta / Feedback</option>
               </select>
             </div>
 
@@ -204,32 +319,30 @@
                 class="btn-ia"
                 (click)="generarMensajeIA()" 
                 [disabled]="generandoIA || !contextoNegocio || !objetivoMensaje">
-                {{ generandoIA ? '⏳ Generando...' : '✨ Generar mensaje' }}
+                {{ generandoIA ? 'Generando...' : 'Generar mensaje' }}
               </button>
               <button 
                 class="btn-secondary"
                 (click)="generarVariantes()" 
                 *ngIf="mensajeTexto"
                 [disabled]="generandoIA">
-                🔄 Variantes
+                Variantes
               </button>
             </div>
           </div>
 
-          <!-- TEXTAREA MENSAJE -->
           <div class="form-group">
-            <label>Mensaje a enviar</label>
+            <label>Mensaje</label>
             <textarea 
               class="mensaje-input"
               [(ngModel)]="mensajeTexto" 
-              placeholder="Escribe tu mensaje aquí..." 
+              placeholder="Escribe tu mensaje..." 
               rows="6"
               [disabled]="enviando">
             </textarea>
             <div class="char-count">{{ mensajeTexto.length }} caracteres</div>
           </div>
 
-          <!-- IMAGEN -->
           <div class="image-section">
             <div *ngIf="imagenPreview" class="image-preview">
               <img [src]="imagenPreview" alt="Preview">
@@ -238,15 +351,14 @@
             <div *ngIf="!imagenPreview" class="image-upload">
               <input type="file" id="imgInput" accept="image/*" (change)="onImagenSeleccionada($event)" hidden>
               <label for="imgInput" class="upload-label">
-                <span>🖼️ Adjuntar imagen</span>
+                Adjuntar imagen
               </label>
             </div>
           </div>
 
-          <!-- PROGRAMACIÓN -->
           <div class="schedule-section">
             <div class="schedule-toggle">
-              <span>⏰ Programar envío</span>
+              <span>Programar envío</span>
               <label class="switch">
                 <input type="checkbox" [(ngModel)]="programarEnvio">
                 <span class="slider"></span>
@@ -285,26 +397,24 @@
             </div>
           </div>
 
-          <!-- BOTONES ENVÍO -->
           <div class="send-actions">
             <button 
               class="btn-secondary"
               (click)="previsualizarMensaje()" 
               [disabled]="!mensajeTexto || contactosSeleccionados.length === 0">
-              👁️ Previsualizar
+              Previsualizar
             </button>
             <button 
               class="btn-primary btn-large"
               [disabled]="enviando || contactosSeleccionados.length === 0 || !mensajeTexto" 
               (click)="iniciarEnvio()">
               <span *ngIf="!enviando">
-                {{ programarEnvio && tipoProgramacion !== 'ahora' ? '📅 Programar' : '🚀 Enviar ahora' }}
+                {{ programarEnvio && tipoProgramacion !== 'ahora' ? 'Programar envío' : 'Enviar ahora' }}
               </span>
-              <span *ngIf="enviando">⏳ Enviando...</span>
+              <span *ngIf="enviando">Enviando...</span>
             </button>
           </div>
 
-          <!-- PROGRESO -->
           <div class="progress-section" *ngIf="enviando">
             <div class="progress-header">
               <span>Enviando mensajes...</span>
@@ -314,11 +424,11 @@
               <div class="progress-fill" [style.width.%]="progresoEnvio"></div>
             </div>
             <div class="progress-stats">
-              <div>✅ {{ mensajesEnviados }} enviados</div>
-              <div>❌ {{ mensajesFallidos }} fallidos</div>
-              <div>⏳ {{ contactosSeleccionados.length - mensajesEnviados - mensajesFallidos }} pendientes</div>
+              <div>{{ mensajesEnviados }} enviados</div>
+              <div>{{ mensajesFallidos }} fallidos</div>
+              <div>{{ contactosSeleccionados.length - mensajesEnviados - mensajesFallidos }} pendientes</div>
             </div>
-            <button class="btn-danger" (click)="cancelarEnvio()">⛔ Cancelar</button>
+            <button class="btn-danger" (click)="cancelarEnvio()">Cancelar</button>
           </div>
 
         </div>
@@ -326,94 +436,84 @@
 
     </div>
 
-    <!-- ============================================== -->
-    <!-- SECCIÓN: DIFUSIONES PROGRAMADAS               -->
-    <!-- ============================================== -->
+    <!-- PROGRAMADAS -->
     <section class="card" *ngIf="mostrarNuevaProgramacion">
       <div class="card-header">
-        <h3>📅 Difusiones Programadas</h3>
+        <h3>Difusiones Programadas</h3>
         <div class="header-stats">
-          <span *ngIf="programacionesPendientes.length > 0">⏳ {{ programacionesPendientes.length }} pendientes</span>
-          <span *ngIf="programacionesEjecutadas.length > 0">✅ {{ programacionesEjecutadas.length }} ejecutadas</span>
+          <span *ngIf="programacionesPendientes.length > 0">{{ programacionesPendientes.length }} pendientes</span>
+          <span *ngIf="programacionesEjecutadas.length > 0">{{ programacionesEjecutadas.length }} ejecutadas</span>
         </div>
       </div>
-
       <div class="card-body">
         <div class="tabs">
           <button 
             class="tab-btn" 
             [class.active]="tabProgramaciones === 'pendientes'"
             (click)="tabProgramaciones = 'pendientes'">
-            ⏳ Pendientes ({{ programacionesPendientes.length }})
+            Pendientes ({{ programacionesPendientes.length }})
           </button>
           <button 
             class="tab-btn" 
             [class.active]="tabProgramaciones === 'ejecutadas'"
             (click)="tabProgramaciones = 'ejecutadas'">
-            ✅ Ejecutadas ({{ programacionesEjecutadas.length }})
+            Ejecutadas ({{ programacionesEjecutadas.length }})
           </button>
         </div>
 
-        <!-- PENDIENTES -->
         <div *ngIf="tabProgramaciones === 'pendientes'" class="tab-content">
           <div *ngIf="programacionesPendientes.length === 0" class="empty-state">
-            <p>No hay difusiones programadas</p>
+            No hay difusiones programadas
           </div>
-
           <div *ngFor="let prog of programacionesPendientes" class="prog-card">
             <div class="prog-header">
               <h4>{{ prog.name }}</h4>
               <span class="prog-time" [class.proximo]="estaProxima(prog.scheduledFor)">
-                ⏱️ {{ getTiempoRestante(prog.scheduledFor) }}
+                {{ getTiempoRestante(prog.scheduledFor) }}
               </span>
             </div>
             <div class="prog-details">
-              <p><strong>📅</strong> {{ formatearFechaProgramada(prog.scheduledFor) }}</p>
-              <p><strong>👥</strong> {{ prog.contacts.length }} contactos</p>
+              <p>{{ formatearFechaProgramada(prog.scheduledFor) }}</p>
+              <p>{{ prog.contacts.length }} contactos</p>
             </div>
             <div class="prog-actions">
-              <button class="btn-sm btn-edit" (click)="editarProgramacion(prog)">✏️ Editar</button>
-              <button class="btn-sm btn-danger" (click)="cancelarProgramacion(prog.id)">❌ Cancelar</button>
+              <button class="btn-sm btn-edit" (click)="editarProgramacion(prog)">Editar</button>
+              <button class="btn-sm btn-danger" (click)="cancelarProgramacion(prog.id)">Cancelar</button>
             </div>
           </div>
         </div>
 
-        <!-- EJECUTADAS -->
         <div *ngIf="tabProgramaciones === 'ejecutadas'" class="tab-content">
           <div *ngIf="programacionesEjecutadas.length === 0" class="empty-state">
-            <p>No hay difusiones ejecutadas</p>
+            No hay difusiones ejecutadas
           </div>
-
           <div *ngFor="let prog of programacionesEjecutadas" class="prog-card ejecutada">
             <div class="prog-header">
               <h4>{{ prog.name }}</h4>
-              <span class="badge-success">✅ Ejecutada</span>
+              <span class="badge-success">Ejecutada</span>
             </div>
             <div class="prog-details">
-              <p><strong>📅</strong> {{ formatearFechaProgramada(prog.executedAt || prog.scheduledFor) }}</p>
-              <p><strong>👥</strong> {{ prog.contacts.length }} contactos</p>
+              <p>{{ formatearFechaProgramada(prog.executedAt || prog.scheduledFor) }}</p>
+              <p>{{ prog.contacts.length }} contactos</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ============================================== -->
-    <!-- HISTORIAL                                     -->
-    <!-- ============================================== -->
+    <!-- HISTORIAL -->
     <section class="card" *ngIf="historialEnvios.length > 0">
       <div class="card-header">
-        <h3>📜 Historial de envíos</h3>
+        <h3>Historial</h3>
         <button class="btn-sm" (click)="limpiarHistorial()">Limpiar</button>
       </div>
-
       <div class="card-body">
         <div class="history-list">
           <div class="history-item" *ngFor="let e of historialEnvios">
             <div class="history-time">{{ formatearFecha(e.fecha) }}</div>
             <div class="history-info">
               <strong>{{ e.base }}</strong>
-              <span>👥{{ e.contactos }} ✅{{ e.enviados }} ❌{{ e.fallidos }}</span>
+              <span>{{ e.contactos }} contactos · {{ e.enviados }} ok · {{ e.fallidos }} fallidos</span>
             </div>
           </div>
         </div>
@@ -422,13 +522,11 @@
 
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: EDITAR PROGRAMACIÓN                     -->
-  <!-- ============================================== -->
+  <!-- MODAL EDITAR PROGRAMACIÓN -->
   <div class="modal-overlay" *ngIf="showEditModal" (click)="cerrarEditModal()">
     <div class="modal-dialog" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>✏️ Editar Programación</h2>
+        <h2>Editar programación</h2>
         <button class="close-btn" (click)="cerrarEditModal()">✕</button>
       </div>
       <div class="modal-body">
@@ -443,15 +541,13 @@
       <div class="modal-footer">
         <button class="btn-secondary" (click)="cerrarEditModal()">Cancelar</button>
         <button class="btn-primary" (click)="guardarEditProgramacion()" [disabled]="!nuevaFechaProgramacion">
-          💾 Guardar
+          Guardar
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: PREVISUALIZACIÓN                        -->
-  <!-- ============================================== -->
+  <!-- MODAL PREVISUALIZACIÓN -->
   <div class="modal-overlay" *ngIf="showPreviewModal" (click)="cerrarPreviewModal()">
     <div class="preview-modal" (click)="$event.stopPropagation()">
       <div class="preview-header">
@@ -464,7 +560,6 @@
           <div class="phone-header">
             <span class="phone-time">{{ getHoraActual() }}</span>
           </div>
-
           <div class="phone-chat">
             <div *ngIf="imagenPreview" class="msg-out">
               <img [src]="imagenPreview" alt="Imagen" class="msg-image">
@@ -479,7 +574,7 @@
       <div class="preview-actions">
         <button class="btn-secondary" (click)="cerrarPreviewModal()">Cerrar</button>
         <button class="btn-primary" (click)="cerrarPreviewModal(); iniciarEnvio();">
-          🚀 Enviar a {{ contactosSeleccionados.length }}
+          Enviar a {{ contactosSeleccionados.length }}
         </button>
       </div>
     </div>
