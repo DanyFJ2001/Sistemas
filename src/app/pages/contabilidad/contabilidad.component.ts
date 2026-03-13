@@ -116,7 +116,7 @@ export class ContabilidadComponent implements OnInit, OnDestroy {
   private audioError: HTMLAudioElement | null = null;
 
   // API Key para OpenRouter
-  private readonly OPENROUTER_API_KEY = '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'; // Reemplazar con tu API key
+  private readonly OPENROUTER_API_KEY = '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'; // Reemplazar con tu API key
 
   constructor(private http: HttpClient) {
     this.initFirebase();
